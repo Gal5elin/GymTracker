@@ -23,7 +23,7 @@ npm run db:seed
 npm run dev
 ```
 
-Open http://localhost:5173. The starter page calls `GET http://localhost:3000/api/health` and displays **API: Connected**. The health endpoint checks API availability; it does not query PostgreSQL. Stop development servers with Ctrl+C.
+Open http://localhost:5173 to try the workout logging UI with sample data. The prototype runs independently of the API; start just the frontend with `npm run dev -w frontend`. See [frontend/README.md](frontend/README.md) for the demo flow and its limitations. The API still provides `GET http://localhost:3000/api/health` for availability checks; it does not query PostgreSQL. Stop development servers with Ctrl+C.
 
 The API validates its environment on startup. `backend/.env` contains `DATABASE_URL`, `JWT_SECRET`, `PORT`, `FRONTEND_ORIGIN`, and the local-only `SEED_PASSWORD`. The frontend uses `frontend/.env` for `VITE_API_URL` (API origin without `/api`); restart Vite after changing it. Never put secrets in `VITE_*` variables, which are public client configuration. Environment files are ignored by Git; examples are safe to track.
 
@@ -34,7 +34,7 @@ Docker binds PostgreSQL to localhost and persists it in a named volume. The Comp
 ```sh
 npm run dev             # API reload and Vite together
 npm run typecheck       # Both apps, tests and seed script
-npm test                # Vitest + Supertest API tests
+npm test                # Frontend model tests and Supertest API tests
 npm run build           # Compile backend and build frontend
 npm run db:generate     # Generate Prisma client after schema changes
 npm run db:dev -- --name describe_change # Create a migration after schema changes
