@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createMockWorkoutService, type Program, type Snapshot, type Workout, type WorkoutService } from './data/workouts';
 import { Badge, Button, EmptyState, Icon, PageHeading, type IconName } from './components/ui';
 import { WorkoutScreen } from './components/WorkoutScreen';
+import AppShell from './components/AppShell';
 
 const Progress = lazy(() => import('./components/Progress'));
 
@@ -34,7 +35,6 @@ function Stat({ label, value }: { label: string; value: string | number }) { ret
 
 export default function App({ service = defaultService }: { service?: WorkoutService }) {
   const [page, setPage] = useState<Page>(readPage);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [data, setData] = useState<Snapshot | null>(null);
   const [loadError, setLoadError] = useState('');
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -45,7 +45,7 @@ export default function App({ service = defaultService }: { service?: WorkoutSer
   const mainRef = useRef<HTMLElement>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   useEffect(() => {
-    const listener = () => { setPage(readPage()); setMenuOpen(false); setActionError(''); };
+    const listener = () => { setPage(readPage()); setActionError(''); };
     window.addEventListener('hashchange', listener);
     return () => window.removeEventListener('hashchange', listener);
   }, []);
@@ -56,7 +56,7 @@ export default function App({ service = defaultService }: { service?: WorkoutSer
     return () => { cancelled = true; };
   }, [service, loadAttempt]);
   useEffect(() => { mainRef.current?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true }); }, [page, detailId, selectedProgramId, !!data]);
-  function navigate(next: Page) { setPage(next); setMenuOpen(false); setDetailId(null); setActionError(''); window.location.hash = `demo/${next}`; }
+  function navigate(next: Page) { setPage(next); setDetailId(null); setActionError(''); window.location.hash = `demo/${next}`; }
   function update(workout: Workout) { setData((current) => current ? { ...current, workouts: current.workouts.some((entry) => entry.id === workout.id) ? current.workouts.map((entry) => entry.id === workout.id ? workout : entry) : [workout, ...current.workouts] } : current); }
   function openProgram(id: string) { setSelectedProgramId(id); navigate('programs'); }
   function openHistory(id: string) { navigate('history'); setDetailId(id); }
@@ -69,7 +69,6 @@ export default function App({ service = defaultService }: { service?: WorkoutSer
     catch (error) { setActionError(error instanceof Error ? error.message : 'Could not start your workout. Try again.'); }
     finally { setStarting(false); }
   }
-  const navLink = (item: typeof navigation[number]) => <a key={item.id} href={`#demo/${item.id}`} aria-current={page === item.id ? 'page' : undefined} onClick={() => { setMenuOpen(false); setDetailId(null); setActionError(''); }}><Icon name={item.icon}/><span>{item.label}</span>{item.id === 'workout' && active && <span className="active-dot" aria-label="Workout in progress"/>}</a>;
   const totalSets = completed.reduce((total, workout) => total + workout.sets.length, 0);
   let content;
   if (loadError) content = <><PageHeading title="Unable to load workouts"/><div className="panel"><EmptyState title="Your workouts couldn’t be loaded" action={<Button onClick={() => setLoadAttempt(loadAttempt + 1)}>Try again</Button>}><span role="alert">{loadError}</span></EmptyState></div></>;
@@ -89,10 +88,5 @@ export default function App({ service = defaultService }: { service?: WorkoutSer
     const detail = completed.find((workout) => workout.id === detailId);
     content = detail ? <Summary workout={detail} onBack={() => setDetailId(null)}/> : <><PageHeading title="Workout history" action={<Button variant="primary" onClick={() => navigate(active ? 'workout' : 'programs')}><Icon name="plus" size={18}/>{active ? 'Resume workout' : 'Start workout'}</Button>}/><HistoryList workouts={completed} onOpen={openHistory} onStart={() => navigate('programs')}/></>;
   } else content = <Suspense fallback={<p role="status">Loading your progress…</p>}><Progress workouts={completed}/></Suspense>;
-  return <div className="app-shell"><a href="#main-content" className="skip-link" onClick={(event) => { event.preventDefault(); mainRef.current?.focus(); }}>Skip to content</a>
-    <aside className="sidebar"><a className="brand" href="#demo/dashboard"><span className="brand-mark"><Icon name="workout" size={23}/></span>GymTracker<span className="brand-period">.</span></a><nav aria-label="Main navigation">{navigation.map(navLink)}</nav><div className="sidebar-bottom"><div className="profile"><span className="avatar">YO</span><div><strong>Your workspace</strong></div></div></div></aside>
-    <div className="workspace"><header className="topbar"><div className="topbar-left"><button className="menu-toggle" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(!menuOpen)}><Icon name={menuOpen ? 'close' : 'menu'}/></button><span className="breadcrumb">Workspace <span>/</span> <strong>{navigation.find((item) => item.id === page)?.label}</strong></span></div></header>
-      {menuOpen && <nav className="mobile-nav" id="mobile-navigation" aria-label="Mobile navigation">{navigation.map(navLink)}</nav>}
-      <main id="main-content" ref={mainRef} tabIndex={-1}><div className="content">{content}</div></main>
-    </div></div>;
+  return <AppShell navigation={navigation.map(item => ({ ...item, href: `#demo/${item.id}`, inProgress: item.id === 'workout' && !!active }))} activePage={page} displayName="Demo workspace" roleLabel="Sample data" mainRef={mainRef} onNavigate={() => { setDetailId(null); setActionError(''); }}>{content}</AppShell>;
 }
