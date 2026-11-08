@@ -52,3 +52,36 @@ describe('in-memory authenticated API client', () => {
     expect(client.getSession()?.user).toEqual(user);
   });
 });
+
+describe('logout', () => {
+  it('clears session, notifies listeners and blocks requests until a fresh login', async () => {
+    const fetch = vi.fn().mockResolvedValue(loginResponse()); vi.stubGlobal('fetch', fetch);
+    const client = createAuthClient(); await client.login(user.email, 'password');
+    const listener = vi.fn(); const unsubscribe = client.subscribe(listener);
+    client.logout();
+    expect(client.getSession()).toBeNull();
+    expect(listener).toHaveBeenCalledTimes(1);
+    await expect(client.request('/api/auth/me')).rejects.toMatchObject({ status: 401 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await client.login(user.email, 'password');
+    expect(client.getSession()?.user).toEqual(user);
+    unsubscribe();
+  });
+  it('prevents a pending login from restoring a logged-out session', async () => {
+    let resolve!: (value: ReturnType<typeof loginResponse>) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(done => { resolve = done; })));
+    const client = createAuthClient();
+    const pending = client.login(user.email, 'password');
+    client.logout(); resolve(loginResponse()); await pending;
+    expect(client.getSession()).toBeNull();
+  });
+  it('rejects responses from requests started before logout', async () => {
+    let resolve!: (value: { ok: boolean; status: number }) => void;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(loginResponse()).mockImplementationOnce(() => new Promise(done => { resolve = done; })));
+    const client = createAuthClient(); await client.login(user.email, 'password');
+    const pending = client.request('/api/auth/me');
+    client.logout(); resolve({ ok: true, status: 200 });
+    await expect(pending).rejects.toMatchObject({ status: 401 });
+    expect(client.getSession()).toBeNull();
+  });
+});

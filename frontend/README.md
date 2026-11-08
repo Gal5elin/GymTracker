@@ -14,7 +14,7 @@ Open http://localhost:5173 to register a real member account. Start the API and 
 
 Registration shows field validation, duplicate-email errors, retryable failures and account-creation confirmation. It does not log in automatically; use **Sign in** after creating an account.
 
-Open http://localhost:5173/#login to sign in. Login keeps the JWT only in memory and opens a signed-in account page backed by `GET /api/auth/me`. Requests made through `src/api/auth.ts` attach the bearer token automatically; expired or rejected tokens clear the session and require another login. Refreshing the page requires signing in again. Credentials and tokens are never saved to browser storage. Failed login and connection errors allow retry. Logout and role navigation remain separate issues.
+Open http://localhost:5173/#login to sign in. Login keeps the JWT only in memory and opens a signed-in account page backed by `GET /api/auth/me`. Requests made through `src/api/auth.ts` attach the bearer token automatically; expired or rejected tokens clear the session and require another login. Refreshing the page requires signing in again. Credentials and tokens are never saved to browser storage. Failed login and connection errors allow retry. Use **Sign out** on the account page to clear the in-memory session and return to login. Pending login responses cannot restore a session after logout. Role navigation remains a separate issue.
 
 Use **Explore the workout demo** or open http://localhost:5173/#dashboard for the independent prototype. Login, API and database are not required for that demo.
 

@@ -20,7 +20,7 @@ export default function Login({ client, onSuccess }: { client: AuthClient; onSuc
     const request = new AbortController(); controller.current = request;
     try {
       await client.login(email, password, request.signal);
-      if (!request.signal.aborted) { setPassword(''); onSuccess(); }
+      if (!request.signal.aborted && client.getSession()) { setPassword(''); onSuccess(); }
     } catch (failure) {
       if (!request.signal.aborted) setError(failure instanceof ApiError ? failure.message : 'Could not connect to sign in. Please try again.');
     } finally {
