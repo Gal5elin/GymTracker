@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from './app.js';
 
-const app = createApp('http://localhost:5173');
+const app = createApp('http://localhost:5173', 'test-only-secret-at-least-32-characters');
 describe('API foundation', () => {
   it('reports health and allows the configured frontend', async () => {
     const response = await request(app).get('/api/health').set('Origin', 'http://localhost:5173');
