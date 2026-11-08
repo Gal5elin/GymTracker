@@ -47,7 +47,7 @@ To create a migration after editing `backend/prisma/schema.prisma`, use `npm run
 
 You can run apps independently with `npm run dev -w backend` and `npm run dev -w frontend`. After building, `npm start -w backend` starts the compiled API; `npm run preview -w frontend` previews the frontend (configure `FRONTEND_ORIGIN` to its URL to allow browser requests).
 
-## Registration API and database tests
+## Authentication API and database tests
 
 `POST /api/auth/register` accepts `{ "displayName": "Your name", "email": "you@example.com", "password": "a-long-password" }`.
 Names are trimmed (1–100 characters); email is trimmed, lowercased and validated (maximum 254 characters).
@@ -55,6 +55,20 @@ Passwords must contain 12–128 characters and are hashed with Argon2id without 
 Registration always creates an active `MEMBER`; unknown fields, including client-supplied roles, are rejected.
 Success returns `201` with `{ user: { id, displayName, email, role, isActive, createdAt } }` and no credentials.
 Invalid input returns `400`; a duplicate normalized email returns `409`.
+
+`POST /api/auth/login` accepts `{ "email": "you@example.com", "password": "a-long-password" }`.
+Email is normalized as in registration; passwords are verified against their Argon2id hash.
+Success returns `200` with `{ accessToken, tokenType: "Bearer", expiresIn: 3600, user }`.
+Wrong credentials and inactive accounts return the same `401` error; invalid request shapes return `400`.
+Tokens use HS256, the configured `JWT_SECRET`, issuer `gymtracker`, audience `gymtracker-api`,
+and a one-hour expiry. Token responses are marked `Cache-Control: no-store`.
+
+`GET /api/auth/me` is protected and returns the current safe user details when sent
+`Authorization: Bearer <accessToken>`. Missing, invalid or expired tokens and deleted/inactive
+accounts return `401`. The reusable `requireAuthentication(secret)` middleware validates the token,
+loads the current active account, and supplies it as `res.locals.user` for future protected routes.
+Role and ownership authorization belong to issue #9. Health, registration and login remain public.
+Keep tokens in client memory when implementing login; logout removes that token, as specified in ADR 0004.
 
 Integration tests require a separate database; they never seed or clear the development database.
 Create it once with PostgreSQL running:
@@ -81,7 +95,7 @@ Tests apply checked-in migrations automatically and remove only their generated 
 | trainer@gymtracker.local | TRAINER |
 | admin@gymtracker.local | ADMIN |
 
-All use `SEED_PASSWORD` from `backend/.env` (example: `GymTracker-dev-123!`). Passwords are stored as Argon2id hashes. Seeding upserts accounts by email and six exercises by stable UUID, so rerunning it creates no duplicates. It resets demo account passwords/roles and the seeded catalog values. The seed is refused when `NODE_ENV=production`. Login endpoints are future feature work.
+All use `SEED_PASSWORD` from `backend/.env` (example: `GymTracker-dev-123!`). Passwords are stored as Argon2id hashes. Seeding upserts accounts by email and six exercises by stable UUID, so rerunning it creates no duplicates. It resets demo account passwords/roles and the seeded catalog values. The seed is refused when `NODE_ENV=production`. The login API is available; the frontend login flow is a separate issue.
 
 ## Structure
 

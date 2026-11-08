@@ -8,7 +8,7 @@ import { verify } from 'argon2';
 import { createApp } from './app.js';
 import { prisma } from './db.js';
 
-const app = createApp('http://localhost:5173');
+const app = createApp('http://localhost:5173', 'test-only-secret-at-least-32-characters');
 const emails: string[] = [];
 const password = 'Registration-test-123!';
 function details() {
