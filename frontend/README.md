@@ -12,7 +12,9 @@ npm run dev -w frontend
 
 Open http://localhost:5173 to register a real member account. Start the API and database using the root README first. Configure `VITE_API_URL` in `frontend/.env` if the API is not at `http://localhost:3000`.
 
-Registration shows field validation, duplicate-email errors, retryable failures and account-creation confirmation. It does not log in automatically; login is a later issue.
+Registration shows field validation, duplicate-email errors, retryable failures and account-creation confirmation. It does not log in automatically; use **Sign in** after creating an account.
+
+Open http://localhost:5173/#login to sign in. Login keeps the JWT only in memory and opens a signed-in account page backed by `GET /api/auth/me`. Requests made through `src/api/auth.ts` attach the bearer token automatically; expired or rejected tokens clear the session and require another login. Refreshing the page requires signing in again. Credentials and tokens are never saved to browser storage. Failed login and connection errors allow retry. Logout and role navigation remain separate issues.
 
 Use **Explore the workout demo** or open http://localhost:5173/#dashboard for the independent prototype. Login, API and database are not required for that demo.
 
@@ -34,7 +36,7 @@ npm run build -w frontend
 npm run test -w frontend
 ```
 
-Vitest checks registration submission, validation, duplicate-email feedback, failures and retry, plus the full sample data lifecycle, invalid input, duplicate sets, completed-workout locking, snapshot isolation and loading retry. No browser automation dependency is required. Manually review the responsive layout at 375px and 1440px, keyboard navigation, and the complete logging flow.
+Vitest checks login, in-memory sessions, authenticated requests, expiry, rejection and retry, plus registration submission, validation, duplicate-email feedback, failures and retry, plus the full sample data lifecycle, invalid input, duplicate sets, completed-workout locking, snapshot isolation and loading retry. No browser automation dependency is required. Manually review the responsive layout at 375px and 1440px, keyboard navigation, and the complete logging flow.
 
 ## Deliberately deferred wireframe controls
 

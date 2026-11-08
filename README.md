@@ -95,7 +95,7 @@ Tests apply checked-in migrations automatically and remove only their generated 
 | trainer@gymtracker.local | TRAINER |
 | admin@gymtracker.local | ADMIN |
 
-All use `SEED_PASSWORD` from `backend/.env` (example: `GymTracker-dev-123!`). Passwords are stored as Argon2id hashes. Seeding upserts accounts by email and six exercises by stable UUID, so rerunning it creates no duplicates. It resets demo account passwords/roles and the seeded catalog values. The seed is refused when `NODE_ENV=production`. The login API is available; the frontend login flow is a separate issue.
+All use `SEED_PASSWORD` from `backend/.env` (example: `GymTracker-dev-123!`). Passwords are stored as Argon2id hashes. Seeding upserts accounts by email and six exercises by stable UUID, so rerunning it creates no duplicates. It resets demo account passwords/roles and the seeded catalog values. The seed is refused when `NODE_ENV=production`. The login API and frontend login flow are available at `/#login`; refresh requires signing in again.
 
 ## Structure
 
