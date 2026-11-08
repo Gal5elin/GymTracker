@@ -71,7 +71,7 @@ export default function Registration() {
   return <main className="registration-page">
     <a className="brand" href="#register"><span className="brand-mark"><Icon name="workout" size={23}/></span>GymTracker<span className="brand-period">.</span></a>
     <section className="registration-card panel" aria-label="Registration">
-      {success ? <><h1 id="registration-title">Account created</h1><p role="status">Your member account is ready. You can sign in once login is available.</p></> : <>
+      {success ? <><h1 id="registration-title">Account created</h1><p role="status">Your member account is ready. Sign in to continue.</p></> : <>
         <PageHeading title="Create your account" description="Start planning and recording your workouts."/>
         <form ref={form} onSubmit={submit} noValidate aria-busy={pending}>
           <fieldset disabled={pending}>
@@ -86,6 +86,7 @@ export default function Registration() {
           {error && <p className="field-error" role="alert">{error}</p>}
         </form>
       </>}
+      <a className="registration-demo small" href="#login">Sign in</a>
       <a className="registration-demo small" href="#dashboard">Explore the workout demo</a>
     </section>
   </main>;
