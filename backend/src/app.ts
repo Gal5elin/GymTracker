@@ -1,5 +1,6 @@
 import express, { type ErrorRequestHandler } from 'express';
 import cors from 'cors';
+import { registrationRouter } from './registration.js';
 
 export function createApp(frontendOrigin: string) {
   const app = express();
@@ -7,6 +8,7 @@ export function createApp(frontendOrigin: string) {
   app.use(cors({ origin: frontendOrigin }));
   app.use(express.json({ limit: '100kb' }));
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+  app.use('/api/auth', registrationRouter);
   app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
   const handleError: ErrorRequestHandler = (error, _req, res, _next) => {
     const status = error.status === 400 ? 400 : error.status === 413 ? 413 : 500;
