@@ -47,6 +47,32 @@ To create a migration after editing `backend/prisma/schema.prisma`, use `npm run
 
 You can run apps independently with `npm run dev -w backend` and `npm run dev -w frontend`. After building, `npm start -w backend` starts the compiled API; `npm run preview -w frontend` previews the frontend (configure `FRONTEND_ORIGIN` to its URL to allow browser requests).
 
+## Registration API and database tests
+
+`POST /api/auth/register` accepts `{ "displayName": "Your name", "email": "you@example.com", "password": "a-long-password" }`.
+Names are trimmed (1–100 characters); email is trimmed, lowercased and validated (maximum 254 characters).
+Passwords must contain 12–128 characters and are hashed with Argon2id without trimming.
+Registration always creates an active `MEMBER`; unknown fields, including client-supplied roles, are rejected.
+Success returns `201` with `{ user: { id, displayName, email, role, isActive, createdAt } }` and no credentials.
+Invalid input returns `400`; a duplicate normalized email returns `409`.
+
+Integration tests require a separate database; they never seed or clear the development database.
+Create it once with PostgreSQL running:
+
+```sh
+docker compose exec -T db createdb -U gymtracker gymtracker_test
+```
+
+Add `TEST_DATABASE_URL` from `backend/.env.example` to `backend/.env`, then run:
+
+```sh
+npm run test:integration -w backend
+```
+
+The database name must end in `_test` and differ from the development database name.
+Tests apply checked-in migrations automatically and remove only their generated test accounts.
+`npm test` continues to run the database-independent tests.
+
 ## Local seed accounts
 
 | Email | Role |

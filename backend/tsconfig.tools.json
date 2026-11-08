@@ -7,7 +7,8 @@
   "include": [
     "src/**/*.ts",
     "prisma/**/*.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "vitest.integration.config.ts"
   ],
   "exclude": []
 }
