@@ -23,7 +23,7 @@ npm run db:seed
 npm run dev
 ```
 
-Open http://localhost:5173 to try the workout logging UI with sample data. The prototype runs independently of the API; start just the frontend with `npm run dev -w frontend`. See [frontend/README.md](frontend/README.md) for the demo flow and its limitations. The API still provides `GET http://localhost:3000/api/health` for availability checks; it does not query PostgreSQL. Stop development servers with Ctrl+C.
+Open http://localhost:5173 to register a member account, or http://localhost:5173/#dashboard to try the workout demo with sample data. The prototype runs independently of the API; start just the frontend with `npm run dev -w frontend`. See [frontend/README.md](frontend/README.md) for the demo flow and its limitations. The API still provides `GET http://localhost:3000/api/health` for availability checks; it does not query PostgreSQL. Stop development servers with Ctrl+C.
 
 The API validates its environment on startup. `backend/.env` contains `DATABASE_URL`, `JWT_SECRET`, `PORT`, `FRONTEND_ORIGIN`, and the local-only `SEED_PASSWORD`. The frontend uses `frontend/.env` for `VITE_API_URL` (API origin without `/api`); restart Vite after changing it. Never put secrets in `VITE_*` variables, which are public client configuration. Environment files are ignored by Git; examples are safe to track.
 
