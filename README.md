@@ -67,7 +67,7 @@ and a one-hour expiry. Token responses are marked `Cache-Control: no-store`.
 `Authorization: Bearer <accessToken>`. Missing, invalid or expired tokens and deleted/inactive
 accounts return `401`. The reusable `requireAuthentication(secret)` middleware validates the token,
 loads the current active account, and supplies it as `res.locals.user` for future protected routes.
-Role and ownership authorization belong to issue #9. Health, registration and login remain public.
+Role and ownership authorization use the helpers described below. Health, registration and login remain public.
 Keep tokens in client memory when implementing login; logout removes that token, as specified in ADR 0004.
 
 Integration tests require a separate database; they never seed or clear the development database.
@@ -86,6 +86,30 @@ npm run test:integration -w backend
 The database name must end in `_test` and differ from the development database name.
 Tests apply checked-in migrations automatically and remove only their generated test accounts.
 `npm test` continues to run the database-independent tests.
+
+## Server permissions
+
+`backend/src/permissions.ts` provides role middleware and database-backed checks for program/day
+ownership, workout ownership, private results access, accepted trainer links and trainer assignments.
+Unauthorized actions return JSON `403`; missing authentication returns `401`. Trainers retain personal
+member functions. Administrators have no override for private results, workout recording or personal
+programs/assignments. Registration still rejects supplied roles and creates only active members.
+
+Feature namespaces (`/api/programs`, `/api/assignments`, `/api/workout-sessions`, `/api/progress`,
+`/api/trainer-links`) require an authenticated member or trainer. `/api/exercises` requires authentication.
+Feature routes are implemented in their own issues; valid callers currently receive `404` on those
+unimplemented endpoints. Mount new routers after these guards and before the fallback handler.
+
+After `requireAuthentication`, use `authenticatedUser(res)` as the actor; never use a body/query user ID
+or role as the actor. Call `requireProgramOwner`, `requireDayOwner` or `requireWorkoutOwner` before
+accessing/mutating those records. Use `requireMemberResultsAccess` for history/progress and
+`requireTrainerAssignment` before assigning a trainer-owned program. Personal self-assignment uses
+the member's own program ownership check in the workout-start issue. Trainer reads and assignments
+recheck the current `ACCEPTED` link on every operation; pending/rejected/revoked links grant no access.
+Permission checks must be composed with each feature's validation and transactional mutation rules.
+
+Database integration tests cover the production namespace guards and test-only resource routes using
+these helpers; no test resource routes are exposed by the real app.
 
 ## Local seed accounts
 
