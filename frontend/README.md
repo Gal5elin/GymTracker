@@ -10,7 +10,11 @@ From the repository root:
 npm run dev -w frontend
 ```
 
-Open http://localhost:5173. Login, API and database are not required for this prototype.
+Open http://localhost:5173 to register a real member account. Start the API and database using the root README first. Configure `VITE_API_URL` in `frontend/.env` if the API is not at `http://localhost:3000`.
+
+Registration shows field validation, duplicate-email errors, retryable failures and account-creation confirmation. It does not log in automatically; login is a later issue.
+
+Use **Explore the workout demo** or open http://localhost:5173/#dashboard for the independent prototype. Login, API and database are not required for that demo.
 
 Try **Start workout → View program → Start this workout → Save a set → Finish workout**. The completed summary opens immediately, and the session also appears in History, Overview and Progress. Bodyweight movements accept a blank weight. Saved sets and completed workouts are read-only.
 
@@ -18,8 +22,8 @@ The prototype uses typed, in-memory sample data. All changes reset on refresh; n
 
 Additional states can be reviewed with:
 
-- `http://localhost:5173/?demo=empty`: no completed workouts; programs remain available.
-- `http://localhost:5173/?demo=error`: initial loading failure; **Try again** recovers.
+- `http://localhost:5173/?demo=empty#dashboard`: no completed workouts; programs remain available.
+- `http://localhost:5173/?demo=error#dashboard`: initial loading failure; **Try again** recovers.
 - Loading feedback is shown during sample data operations.
 
 ## Verification
@@ -30,7 +34,7 @@ npm run build -w frontend
 npm run test -w frontend
 ```
 
-Vitest checks the full sample data lifecycle, invalid input, duplicate sets, completed-workout locking, snapshot isolation and loading retry. No browser automation dependency is required. Manually review the responsive layout at 375px and 1440px, keyboard navigation, and the complete logging flow.
+Vitest checks registration submission, validation, duplicate-email feedback, failures and retry, plus the full sample data lifecycle, invalid input, duplicate sets, completed-workout locking, snapshot isolation and loading retry. No browser automation dependency is required. Manually review the responsive layout at 375px and 1440px, keyboard navigation, and the complete logging flow.
 
 ## Deliberately deferred wireframe controls
 
