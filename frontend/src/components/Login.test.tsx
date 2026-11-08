@@ -14,6 +14,22 @@ function fill() {
 function submit() { fireEvent.click(screen.getByRole('button', { name: 'Sign in' })); }
 
 describe('Login flow', () => {
+  it.each(['MEMBER', 'TRAINER', 'ADMIN'])('signs out a %s, removes account details and redirects to login', async role => {
+    const accountUser = { ...user, role };
+    const client = createAuthClient();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'secret-token', tokenType: 'Bearer', expiresIn: 3600, user: accountUser }) }).mockResolvedValue({ ok: true, json: async () => ({ user: accountUser }) }));
+    await client.login(user.email, 'password');
+    window.location.hash = 'account'; render(<Root client={client}/>);
+    expect(await screen.findByText('Signed in as Test member.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeTruthy();
+    expect(window.location.hash).toBe('#login');
+    expect(client.getSession()).toBeNull();
+    expect(screen.queryByText('Signed in as Test member.')).toBeNull();
+    expect((screen.getByLabelText('Password') as HTMLInputElement).value).toBe('');
+    await expect(client.request('/api/auth/me')).rejects.toMatchObject({ status: 401 });
+  });
+
   it('logs in, loads the real account with the token, and never persists credentials', async () => {
     const local = vi.spyOn(Storage.prototype, 'setItem');
     const fetch = vi.fn().mockResolvedValueOnce(response()).mockResolvedValueOnce({ ok: true, json: async () => ({ user }) }); vi.stubGlobal('fetch', fetch);
