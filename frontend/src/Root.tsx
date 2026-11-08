@@ -20,7 +20,7 @@ function Account({ client, onLogout }: { client: AuthClient; onLogout: () => voi
     });
     return () => controller.abort();
   }, [client, attempt]);
-  return <main className="registration-page"><section className="registration-card panel"><h1>Welcome, {session?.user.displayName}</h1><Button onClick={onLogout}>Sign out</Button><p role={failed ? 'alert' : 'status'}>{status}</p>{failed && <Button onClick={() => setAttempt(current => current + 1)}>Try again</Button>}<a className="registration-demo small" href="#dashboard">Explore the workout demo</a></section></main>;
+  return <main className="registration-page"><section className="registration-card panel"><h1>Welcome, {session?.user.displayName}</h1><Button onClick={onLogout}>Sign out</Button><p role={failed ? 'alert' : 'status'}>{status}</p>{failed && <Button onClick={() => setAttempt(current => current + 1)}>Try again</Button>}<a className="registration-demo small" href="#demo/dashboard">Explore the workout demo</a></section></main>;
 }
 
 export default function Root({ client: providedClient }: { client?: AuthClient }) {
@@ -28,17 +28,46 @@ export default function Root({ client: providedClient }: { client?: AuthClient }
   const session = useSyncExternalStore(client.subscribe, client.getSession);
   const [hash, setHash] = useState(window.location.hash);
   useEffect(() => {
-    const update = () => setHash(window.location.hash);
+    const update = () => {
+      const current = client.getSession();
+      if (current && current.expiresAt <= Date.now()) client.logout();
+      setHash(window.location.hash);
+    };
     window.addEventListener('hashchange', update);
-    return () => window.removeEventListener('hashchange', update);
-  }, []);
+    window.addEventListener('popstate', update);
+    window.addEventListener('pageshow', update);
+    document.addEventListener('visibilitychange', update);
+    return () => {
+      window.removeEventListener('hashchange', update);
+      window.removeEventListener('popstate', update);
+      window.removeEventListener('pageshow', update);
+      document.removeEventListener('visibilitychange', update);
+    };
+  }, [client]);
+  useEffect(() => {
+    if (!session) return;
+    const timer = window.setTimeout(() => client.logout(), Math.max(0, session.expiresAt - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [client, session]);
+  const authenticated = !!session && session.expiresAt > Date.now();
+  const demo = /^#demo\/(dashboard|programs|workout|history|progress)$/.test(hash);
+  const protectedPage = !!hash && hash !== '#register' && hash !== '#login' && !demo;
+  useEffect(() => {
+    if (!protectedPage) return;
+    const destination = authenticated ? '#account' : '#login';
+    if (hash !== destination) {
+      window.history.replaceState(null, '', destination);
+      setHash(destination);
+    }
+  }, [hash, protectedPage, authenticated]);
   function signedIn() { window.location.hash = 'account'; setHash('#account'); }
   function signOut() {
     client.logout();
-    window.location.hash = 'login';
+    window.history.replaceState(null, '', '#login');
     setHash('#login');
   }
-  if (hash === '#account' && session) return <Account client={client} onLogout={signOut}/>;
-  if (hash === '#login' || hash === '#account') return <Login client={client} onSuccess={signedIn}/>;
-  return !hash || hash === '#register' ? <Registration/> : <App/>;
+  if (demo) return <App/>;
+  if (protectedPage) return authenticated ? <Account client={client} onLogout={signOut}/> : <Login client={client} onSuccess={signedIn}/>;
+  if (hash === '#login') return <Login client={client} onSuccess={signedIn}/>;
+  return <Registration/>;
 }

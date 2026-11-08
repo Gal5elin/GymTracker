@@ -16,7 +16,9 @@ Registration shows field validation, duplicate-email errors, retryable failures 
 
 Open http://localhost:5173/#login to sign in. Login keeps the JWT only in memory and opens a signed-in account page backed by `GET /api/auth/me`. Requests made through `src/api/auth.ts` attach the bearer token automatically; expired or rejected tokens clear the session and require another login. Refreshing the page requires signing in again. Credentials and tokens are never saved to browser storage. Failed login and connection errors allow retry. Use **Sign out** on the account page to clear the in-memory session and return to login. Pending login responses cannot restore a session after logout. Role navigation remains a separate issue.
 
-Use **Explore the workout demo** or open http://localhost:5173/#dashboard for the independent prototype. Login, API and database are not required for that demo.
+Protected links (including `#account`) redirect to `#login` without a valid in-memory session. Browser Back/Forward, restored pages and session expiry recheck authentication; logout replaces the current account URL with login. Unknown routes cannot open the workout prototype. Real workout routes will be connected in their feature issues.
+
+Use **Explore the workout demo** or open http://localhost:5173/#demo/dashboard for the independent prototype. Login, API and database are not required for that demo.
 
 Try **Start workout → View program → Start this workout → Save a set → Finish workout**. The completed summary opens immediately, and the session also appears in History, Overview and Progress. Bodyweight movements accept a blank weight. Saved sets and completed workouts are read-only.
 
@@ -24,8 +26,8 @@ The prototype uses typed, in-memory sample data. All changes reset on refresh; n
 
 Additional states can be reviewed with:
 
-- `http://localhost:5173/?demo=empty#dashboard`: no completed workouts; programs remain available.
-- `http://localhost:5173/?demo=error#dashboard`: initial loading failure; **Try again** recovers.
+- `http://localhost:5173/?demo=empty#demo/dashboard`: no completed workouts; programs remain available.
+- `http://localhost:5173/?demo=error#demo/dashboard`: initial loading failure; **Try again** recovers.
 - Loading feedback is shown during sample data operations.
 
 ## Verification
