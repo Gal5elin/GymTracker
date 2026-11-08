@@ -14,9 +14,9 @@ Open http://localhost:5173 to register a real member account. Start the API and 
 
 Registration shows field validation, duplicate-email errors, retryable failures and account-creation confirmation. It does not log in automatically; use **Sign in** after creating an account.
 
-Open http://localhost:5173/#login to sign in. Login keeps the JWT only in memory and opens a signed-in account page backed by `GET /api/auth/me`. Requests made through `src/api/auth.ts` attach the bearer token automatically; expired or rejected tokens clear the session and require another login. Refreshing the page requires signing in again. Credentials and tokens are never saved to browser storage. Failed login and connection errors allow retry. Use **Sign out** on the account page to clear the in-memory session and return to login. Pending login responses cannot restore a session after logout. Role navigation remains a separate issue.
+Open http://localhost:5173/#login to sign in. Login keeps the JWT only in memory and opens the shared application shell backed by `GET /api/auth/me`. Requests made through `src/api/auth.ts` attach the bearer token automatically; expired or rejected tokens clear the session and require another login. Refreshing the page requires signing in again. Credentials and tokens are never saved to browser storage. Failed login and connection errors allow retry. Use **Sign out** on the account page to clear the in-memory session and return to login. Pending login responses cannot restore a session after logout. Navigation follows the current role returned by the API: members see personal sections; trainers also see invitations, assignments and member results; admins see an administration overview without private workout sections.
 
-Protected links (including `#account`) redirect to `#login` without a valid in-memory session. Browser Back/Forward, restored pages and session expiry recheck authentication; logout replaces the current account URL with login. Unknown routes cannot open the workout prototype. Real workout routes will be connected in their feature issues.
+Protected links (including `#account`) redirect to `#login` without a valid in-memory session. Browser Back/Forward, restored pages and session expiry recheck authentication; logout replaces the current account URL with login. Unknown routes cannot open the workout prototype. Allowed workspace routes now open role-specific sections. Features awaiting their APIs show a coming-soon state with no sample records. A direct link to a section outside the current role shows Access denied. The independent demo reuses the same shell and retains its sample data.
 
 Use **Explore the workout demo** or open http://localhost:5173/#demo/dashboard for the independent prototype. Login, API and database are not required for that demo.
 
@@ -48,7 +48,7 @@ The following need separate requirements or their existing feature issues:
 - Draft persistence, resume after refresh, autosave and offline operation: the demo is memory-only.
 - Rest timers, exercise images/video, RPE and volume metrics: outside this UI foundation.
 - Creating/editing programs: #17–#20; sample program/day selection is implemented here.
-- Authentication and role navigation: #5–#10.
+- Authentication, logout, protected routing and role navigation are connected to the real API (#5–#10).
 - Real workout start, recording, completion and history: #23–#30.
 - Real progress data: #31–#32; the preview computes maximum weight from completed sample sessions.
 - Trainer invitations, messaging, trainer notes and advanced reports: omitted from this member logging prototype.
