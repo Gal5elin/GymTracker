@@ -12,7 +12,7 @@ const navigation: { id: Page; label: string; icon: IconName }[] = [
 ];
 const formatDate = (value: string) => new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 const formatDuration = (workout: Workout) => `${Math.max(1, Math.round((new Date(workout.finishedAt ?? workout.startedAt).getTime() - new Date(workout.startedAt).getTime()) / 60_000))} min`;
-function readPage(): Page { return navigation.find((item) => item.id === window.location.hash.slice(1))?.id ?? 'dashboard'; }
+function readPage(): Page { return navigation.find((item) => item.id === window.location.hash.replace(/^#demo\//, ''))?.id ?? 'dashboard'; }
 const params = new URLSearchParams(window.location.search);
 const defaultService = createMockWorkoutService({ empty: params.get('demo') === 'empty', failFirstLoad: params.get('demo') === 'error' });
 
@@ -56,7 +56,7 @@ export default function App({ service = defaultService }: { service?: WorkoutSer
     return () => { cancelled = true; };
   }, [service, loadAttempt]);
   useEffect(() => { mainRef.current?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true }); }, [page, detailId, selectedProgramId, !!data]);
-  function navigate(next: Page) { setPage(next); setMenuOpen(false); setDetailId(null); setActionError(''); window.location.hash = next; }
+  function navigate(next: Page) { setPage(next); setMenuOpen(false); setDetailId(null); setActionError(''); window.location.hash = `demo/${next}`; }
   function update(workout: Workout) { setData((current) => current ? { ...current, workouts: current.workouts.some((entry) => entry.id === workout.id) ? current.workouts.map((entry) => entry.id === workout.id ? workout : entry) : [workout, ...current.workouts] } : current); }
   function openProgram(id: string) { setSelectedProgramId(id); navigate('programs'); }
   function openHistory(id: string) { navigate('history'); setDetailId(id); }
@@ -69,7 +69,7 @@ export default function App({ service = defaultService }: { service?: WorkoutSer
     catch (error) { setActionError(error instanceof Error ? error.message : 'Could not start your workout. Try again.'); }
     finally { setStarting(false); }
   }
-  const navLink = (item: typeof navigation[number]) => <a key={item.id} href={`#${item.id}`} aria-current={page === item.id ? 'page' : undefined} onClick={() => { setMenuOpen(false); setDetailId(null); setActionError(''); }}><Icon name={item.icon}/><span>{item.label}</span>{item.id === 'workout' && active && <span className="active-dot" aria-label="Workout in progress"/>}</a>;
+  const navLink = (item: typeof navigation[number]) => <a key={item.id} href={`#demo/${item.id}`} aria-current={page === item.id ? 'page' : undefined} onClick={() => { setMenuOpen(false); setDetailId(null); setActionError(''); }}><Icon name={item.icon}/><span>{item.label}</span>{item.id === 'workout' && active && <span className="active-dot" aria-label="Workout in progress"/>}</a>;
   const totalSets = completed.reduce((total, workout) => total + workout.sets.length, 0);
   let content;
   if (loadError) content = <><PageHeading title="Unable to load workouts"/><div className="panel"><EmptyState title="Your workouts couldn’t be loaded" action={<Button onClick={() => setLoadAttempt(loadAttempt + 1)}>Try again</Button>}><span role="alert">{loadError}</span></EmptyState></div></>;
@@ -90,7 +90,7 @@ export default function App({ service = defaultService }: { service?: WorkoutSer
     content = detail ? <Summary workout={detail} onBack={() => setDetailId(null)}/> : <><PageHeading title="Workout history" action={<Button variant="primary" onClick={() => navigate(active ? 'workout' : 'programs')}><Icon name="plus" size={18}/>{active ? 'Resume workout' : 'Start workout'}</Button>}/><HistoryList workouts={completed} onOpen={openHistory} onStart={() => navigate('programs')}/></>;
   } else content = <Suspense fallback={<p role="status">Loading your progress…</p>}><Progress workouts={completed}/></Suspense>;
   return <div className="app-shell"><a href="#main-content" className="skip-link" onClick={(event) => { event.preventDefault(); mainRef.current?.focus(); }}>Skip to content</a>
-    <aside className="sidebar"><a className="brand" href="#dashboard"><span className="brand-mark"><Icon name="workout" size={23}/></span>GymTracker<span className="brand-period">.</span></a><nav aria-label="Main navigation">{navigation.map(navLink)}</nav><div className="sidebar-bottom"><div className="profile"><span className="avatar">YO</span><div><strong>Your workspace</strong></div></div></div></aside>
+    <aside className="sidebar"><a className="brand" href="#demo/dashboard"><span className="brand-mark"><Icon name="workout" size={23}/></span>GymTracker<span className="brand-period">.</span></a><nav aria-label="Main navigation">{navigation.map(navLink)}</nav><div className="sidebar-bottom"><div className="profile"><span className="avatar">YO</span><div><strong>Your workspace</strong></div></div></div></aside>
     <div className="workspace"><header className="topbar"><div className="topbar-left"><button className="menu-toggle" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(!menuOpen)}><Icon name={menuOpen ? 'close' : 'menu'}/></button><span className="breadcrumb">Workspace <span>/</span> <strong>{navigation.find((item) => item.id === page)?.label}</strong></span></div></header>
       {menuOpen && <nav className="mobile-nav" id="mobile-navigation" aria-label="Mobile navigation">{navigation.map(navLink)}</nav>}
       <main id="main-content" ref={mainRef} tabIndex={-1}><div className="content">{content}</div></main>

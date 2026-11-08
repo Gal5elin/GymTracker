@@ -87,7 +87,7 @@ export default function Registration() {
         </form>
       </>}
       <a className="registration-demo small" href="#login">Sign in</a>
-      <a className="registration-demo small" href="#dashboard">Explore the workout demo</a>
+      <a className="registration-demo small" href="#demo/dashboard">Explore the workout demo</a>
     </section>
   </main>;
 }

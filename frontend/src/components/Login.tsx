@@ -41,7 +41,7 @@ export default function Login({ client, onSuccess }: { client: AuthClient; onSuc
         {error && <p className="field-error" role="alert">{error}</p>}
       </form>
       <a className="registration-demo small" href="#register">Create an account</a>
-      <a className="registration-demo small" href="#dashboard">Explore the workout demo</a>
+      <a className="registration-demo small" href="#demo/dashboard">Explore the workout demo</a>
     </section>
   </main>;
 }
