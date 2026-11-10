@@ -172,6 +172,41 @@ No schema migration is needed. The connected exercise planner (#20) is available
 **My programs → View program → Plan exercises**. It preserves entered targets after failed saves
 and while refreshing a stale list. Repeated catalog selections remain distinct planned entries.
 
+## Workout startup and frozen plans
+
+US-11 backend (#23) exposes `POST /api/workout-sessions` with
+`{ programId, dayId, assignmentId? }` for members and trainers acting for themselves.
+The program must be owned by the actor or assigned to them, and the day must belong to that program.
+A supplied assignment must match both the actor and program. Without an assignment ID, the server
+uses the earliest matching assignment; for an owned program it reuses or creates a self-assignment.
+A member retains access to an existing assignment even after trainer collaboration ends.
+
+A successful new start returns `201 { workout }` with `Location`, `status: IN_PROGRESS`, a server
+start time, the assignment ID and `planSnapshot`. The version-1 snapshot contains program/day names
+and identifiers plus the ordered exercises, catalog names/equipment/muscle groups, original entry IDs
+and target sets/reps/weight. Weight is a decimal string or null. It is never rebuilt from the current
+plan, so later renames, edits, removals, reordering and catalog deactivation do not change it.
+Actual performed sets remain separate from these targets.
+
+Startup locks the user, program and day in a transaction. Concurrent starts serialize; retrying the
+same active day returns `200` with the existing workout and unchanged snapshot. Starting a different
+day while a workout is active returns `409`. Empty days and malformed/forged input return `400`,
+inaccessible programs/assignments `403`, and nonexistent or mismatched days `404`. The server assigns
+member, status, start time and snapshot; clients cannot supply these fields. Failed starts create
+neither workouts nor self-assignments. Active-workout serialization must also be used by future
+workout-creation entry points.
+
+`GET /api/workout-sessions/active` returns `{ workout }` (null when none), scoped to the actor.
+`GET /api/workout-sessions/:sessionId` returns only the owner's workout, including the frozen plan.
+Admins cannot use these endpoints; missing authentication returns `401`. Trainer consent does not
+allow starting or reading another user's workout through these owner-only endpoints.
+
+Apply the snapshot migration with `npm run db:migrate -w backend` before starting the updated API.
+Legacy workouts retain `planSnapshot: null`; their historical plan cannot be reconstructed reliably.
+All new API-created workouts have a versioned snapshot. Future set-recording endpoints must validate
+exercises and positions against this snapshot, not the live program. The launch screen and planned
+exercise view are a separate frontend issue (#24); #23 does not add frontend workout controls.
+
 ## Server permissions
 
 `backend/src/permissions.ts` provides role middleware and database-backed checks for program/day

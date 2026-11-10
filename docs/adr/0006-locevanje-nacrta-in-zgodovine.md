@@ -14,6 +14,13 @@ Uporabnik ali trener lahko spremeni načrt programa, vendar morajo pretekli tren
 
 Izbrana možnost: **"Ločeni `program_exercises` in `session_sets` z dejanskimi vrednostmi"**, ker zabeležene ponovitve, teže in položaji vaj ostanejo neodvisni od kasnejših sprememb programa, zato zgodovina in graf prikazujeta dejansko izvedbo.
 
+Ob začetku treninga dodatno shranimo **verzioniran posnetek načrta v JSONB**
+(`workout_sessions.plan_snapshot`). Vsebuje naziv programa in dneva, urejeno listo vaj, imena
+in ciljne vrednosti. Relacijske reference ostanejo zaradi sledljivosti, prikaz aktivnega treninga
+pa uporablja posnetek. Posnetek se shrani v isti transakciji kot trening in se kasneje ne posodablja
+iz programa ali kataloga. Verzijo in obliko preverja strežnik. Obstoječim treningom brez posnetka
+ne izmišljamo zgodovinskega načrta; njihov posnetek ostane NULL.
+
 ### Posledice
 
 * **Pozitivno:** spremembe programa ne prepišejo izvedenih rezultatov.
