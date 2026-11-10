@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { AuthClient, User } from '../api/auth';
 import History from './History';
+const PersonalProgress = lazy(() => import('./PersonalProgress'));
 import Workout from './Workout';
 import Programs from './Programs';
 import AppShell, { type NavigationItem } from './AppShell';
@@ -13,7 +14,7 @@ const pages: WorkspacePage[] = [
   { id: 'programs', label: 'My programs', href: '#programs', icon: 'layers', roles: personal, description: 'Create and organize your training programs and numbered days.' },
   { id: 'workout', label: 'Workout', href: '#workout', icon: 'workout', roles: personal, description: 'Start a workout or return to your active workout.' },
   { id: 'history', label: 'History', href: '#history', icon: 'history', roles: personal, description: 'Review your completed workouts and saved results.' },
-  { id: 'progress', label: 'Progress', href: '#progress', icon: 'trend', roles: personal, description: 'Follow your exercise progress here. Progress tracking is coming soon.' },
+  { id: 'progress', label: 'Progress', href: '#progress', icon: 'trend', roles: personal, description: 'Follow your maximum recorded weights over time.' },
   { id: 'invitations', label: 'Invitations', href: '#invitations', icon: 'plus', roles: ['TRAINER'], description: 'Invite members to collaborate here. Trainer invitations are coming soon.' },
   { id: 'assignments', label: 'Assignments', href: '#assignments', icon: 'layers', roles: ['TRAINER'], description: 'Assign your programs to members who accept your invitation. Program assignments are coming soon.' },
   { id: 'members', label: 'Member results', href: '#members', icon: 'trend', roles: ['TRAINER'], description: 'Review workouts and progress for members who accept your invitation. Member results are coming soon.' },
@@ -45,10 +46,11 @@ export default function Workspace({ client, hash, onLogout }: { client: AuthClie
     {user && error && <div className="notice" role="alert"><span>Could not refresh your account.</span><Button onClick={() => setAttempt(current => current + 1)}>Try again</Button></div>}
     {!user ? error ? <><PageHeading title="Unable to load account"/><p role="alert" className="field-error">{error}</p><Button onClick={() => setAttempt(current => current + 1)}>Try again</Button></> : <p role="status">Loading your account…</p>
       : !page || !permitted ? <><PageHeading title="Access denied"/><div className="panel"><EmptyState title="This page is not available for your role" action={<a className="button button-primary" href="#account">Return to overview</a>}>Choose a page from your workspace navigation.</EmptyState></div></>
+      : page.id === 'progress' ? <Suspense fallback={<p role="status">Loading progress…</p>}><PersonalProgress client={client}/></Suspense>
       : page.id === 'history' ? <History client={client} sessionId={historyRoute.test(hash) ? hash.slice('#history/'.length) : undefined}/>
       : page.id === 'workout' ? <Workout client={client} sessionId={workoutRoute.test(hash) ? hash.slice('#workout/'.length) : undefined}/>
       : page.id === 'programs' ? <Programs client={client}/>
-      : page.id === 'account' ? <><PageHeading title={`Welcome, ${user.displayName}`} description={`Signed in as ${user.displayName}.`}/><div className="panel"><EmptyState title={user.role === 'ADMIN' ? 'Administration' : 'Your training workspace'}>{user.role === 'ADMIN' ? 'Your account is reserved for user, role and exercise catalog administration. Management tools are planned for a later version.' : 'Your account is ready. Create a program in My programs, then start it in Workout. Record your sets in Workout. Finish your workout when you are done. Progress features are coming soon.'}</EmptyState></div></>
+      : page.id === 'account' ? <><PageHeading title={`Welcome, ${user.displayName}`} description={`Signed in as ${user.displayName}.`}/><div className="panel"><EmptyState title={user.role === 'ADMIN' ? 'Administration' : 'Your training workspace'}>{user.role === 'ADMIN' ? 'Your account is reserved for user, role and exercise catalog administration. Management tools are planned for a later version.' : 'Your account is ready. Create a program in My programs, then start it in Workout. Record your sets in Workout. Finish your workout when you are done. Review your completed workouts in History and your exercise weights in Progress.'}</EmptyState></div></>
       : <><PageHeading title={page.label}/><div className="panel"><EmptyState title="Coming soon">{page.description}</EmptyState></div></>}
   </AppShell>;
 }

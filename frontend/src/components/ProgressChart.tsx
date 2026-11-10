@@ -1,0 +1,6 @@
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+
+export interface ChartPoint { id: string; label: string; date: string; weight: number }
+export default function ProgressChart({ points, exerciseName }: { points: ChartPoint[]; exerciseName: string }) {
+  return <div className="chart" role="img" aria-label={`Maximum weights for ${exerciseName}: ${points.map((p) => `${p.date}, ${p.weight} kg`).join('; ')}`}><ResponsiveContainer width="100%" height="100%"><AreaChart data={points} margin={{ top: 25, right: 20, left: 0, bottom: 10 }}><CartesianGrid strokeDasharray="3 4" vertical={false} stroke="#e5e5e5"/><XAxis dataKey="id" tickFormatter={(id) => points.find(point => point.id === id)?.label ?? id} tickLine={false} axisLine={false} tick={{ fill: '#737373', fontSize: 12 }}/><YAxis tickLine={false} axisLine={false} width={45} tick={{ fill: '#737373', fontSize: 12 }} unit=" kg"/><Tooltip labelFormatter={(id) => points.find(point => point.id === id)?.date ?? id} contentStyle={{ borderRadius: 0, border: '1px solid #d4d4d4' }} formatter={(value) => [`${value} kg`, 'Max weight']}/><Area type="linear" dataKey="weight" stroke="#171717" strokeWidth={2} fill="#f0f0f0" dot={{ r: 4, fill: '#171717' }} isAnimationActive={false}/></AreaChart></ResponsiveContainer></div>;
+}

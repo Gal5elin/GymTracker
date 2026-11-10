@@ -387,7 +387,7 @@ still tracked in their own issues. Responses are `no-store`.
 
 Program edits, exercise removal or catalog deactivation do not alter recorded maxima. Legacy
 workouts without snapshots can contribute their valid completed sets. No migration is needed.
-The connected Progress selector/chart is the separate frontend issue #32.
+The signed-in **Progress** tab uses these endpoints for its exercise selector and chronological maximum-weight chart. Inactive exercises with completed results remain selectable. Same-day workouts stay separate, zero weights are included, and exercises without eligible results show a no-data message. Expand **View workout values** for exact weights and links to completed workout details. Loading failures can be retried; switching exercises cancels the previous request. The public demo shares the chart presentation while keeping its sample data separate.
 
 ## Server permissions
 
