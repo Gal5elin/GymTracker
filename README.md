@@ -98,6 +98,34 @@ The database name must end in `_test` and differ from the development database n
 Tests apply checked-in migrations automatically and remove only their generated test accounts.
 `npm test` continues to run the database-independent tests.
 
+## Owned programs and days
+
+US-08 backend (#17) supports these authenticated member/trainer endpoints:
+
+| Method | Path | Request / response |
+|---|---|---|
+| GET | `/api/programs` | `{ programs }`, only the current user's programs, newest first |
+| POST | `/api/programs` | `{ name, description? }` → `201 { program }` with `Location` header |
+| GET | `/api/programs/:programId` | `{ program }` including `days` ordered by `dayNumber` ascending |
+| PATCH | `/api/programs/:programId` | `{ name?, description? }` → `{ program }` |
+| POST | `/api/programs/:programId/days` | `{ dayNumber, title }` → `201 { day }` |
+| PATCH | `/api/programs/:programId/days/:dayId` | `{ dayNumber?, title? }` → `{ day }` |
+
+Program names are trimmed, required and limited to 200 characters. Descriptions are optional,
+trimmed and limited to 5,000 characters; blank or null clears the description. An omitted PATCH
+field retains its current value. Day titles are trimmed, required and limited to 100 characters.
+Day numbers must be positive integers within PostgreSQL's integer range; gaps are allowed.
+PATCH requires at least one editable field. Unknown fields (including owner and parent IDs) are rejected.
+
+The server assigns `ownerId` from authentication. Only the owner may read or change a program or
+add/change its days, including when another caller is a linked trainer. The day URL must match its
+parent program. Unauthenticated callers receive `401`, admins/non-owners `403`, malformed inputs
+or IDs `400`, missing records `404`, and duplicate day numbers within a program `409` with a
+`fields.dayNumber` message. The database uniqueness constraint also protects concurrent requests.
+Program/day validation errors return `{ error, fields }`. No schema migration is needed.
+
+The authenticated program editor is tracked separately in #18; this issue adds the API only.
+
 ## Server permissions
 
 `backend/src/permissions.ts` provides role middleware and database-backed checks for program/day

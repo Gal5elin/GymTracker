@@ -69,8 +69,8 @@ describe('server authorization', () => {
   it.each(['/api/programs', '/api/assignments', '/api/workout-sessions', '/api/progress', '/api/trainer-links'])('protects production namespace %s and denies admin access', async path => {
     expect((await request(productionApp).get(path)).status).toBe(401);
     expect((await request(productionApp).get(path).set('Authorization', bearer(admin))).status).toBe(403);
-    // The feature route is not implemented yet, so authorized callers reach the 404.
-    expect((await request(productionApp).get(path).set('Authorization', bearer(member))).status).toBe(404);
+    // Programs are implemented; the remaining feature namespaces still reach the 404.
+    expect((await request(productionApp).get(path).set('Authorization', bearer(member))).status).toBe(path === '/api/programs' ? 200 : 404);
   });
   it('restricts trainer/admin actions to their exact roles', async () => {
     for (const id of [member, trainer, admin]) {
