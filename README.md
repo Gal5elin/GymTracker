@@ -354,6 +354,41 @@ link; denied/missing details offer feedback and a back link. List/detail failure
 and requests are cancelled on navigation. Detail links reload after authentication is restored.
 The independent demo shares the history-row layout and keeps its sample data separate.
 
+## Personal exercise progress
+
+US-15 backend (#31) exposes these authenticated member/trainer endpoints:
+
+| Method | Path | Response |
+|---|---|---|
+| GET | `/api/progress/exercises` | `{ exercises }` for exercise selection |
+| GET | `/api/progress/:exerciseId` | `{ exercise, points }` for the actor's selected exercise |
+
+Exercise choices include the active catalog plus deactivated exercises that occur in the actor's
+completed saved sets (including bodyweight-only records). They are ordered by name and ID and
+contain `id`, `name`, `muscleGroup`, `equipment` and `isActive`. Historical deactivation therefore
+does not remove a previously recorded exercise from the selection list. Exercise metadata comes
+from the current global catalog; workout history continues to use frozen snapshot names.
+
+For the selected exercise, PostgreSQL computes the maximum actual `weight_kg` across all matching
+sets and exercise positions in each of the actor's completed workouts. Unfinished workouts and
+null weights are excluded; zero is included. Each point contains `workoutId`, `startedAt`,
+`finishedAt` (nullable for legacy records) and `maxWeightKg` as an exact decimal string in kilograms.
+Points are ordered by workout start time ascending, then UUID ascending for ties. Separate workouts
+on the same date remain separate points. No planned target weights or local-date grouping enter
+the calculation. The aggregation runs in PostgreSQL without converting weights through JavaScript
+floating-point numbers.
+
+An existing exercise with no eligible data returns `200` with `points: []`. The endpoint can read
+a deactivated exercise by ID. Invalid UUIDs return `400`, nonexistent exercises `404`, missing
+login `401` and admin access `403`. Query parameters, including alternate member/status filters,
+are rejected with `400`; the actor always comes from authentication. Trainers see only their own
+personal progress here, even when linked to another member. Separate trainer-read endpoints are
+still tracked in their own issues. Responses are `no-store`.
+
+Program edits, exercise removal or catalog deactivation do not alter recorded maxima. Legacy
+workouts without snapshots can contribute their valid completed sets. No migration is needed.
+The connected Progress selector/chart is the separate frontend issue #32.
+
 ## Server permissions
 
 `backend/src/permissions.ts` provides role middleware and database-backed checks for program/day
