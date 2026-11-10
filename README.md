@@ -127,7 +127,46 @@ Program/day validation errors return `{ error, fields }`. No schema migration is
 The authenticated program/day editor (#18) is available at `/#programs` for members and trainers.
 Create a program, open it, and add or edit its numbered days. The editor shows validation, duplicate-number
 and denied-edit feedback and retries failed loads/saves without discarding entered values. Exercise
-planning is handled in #19–#20; day cards do not start workouts yet.
+planning APIs are available in #19; their editor controls follow in #20. Day cards do not start workouts yet.
+
+## Exercise catalog and planned exercises
+
+US-09 backend (#19) exposes `GET /api/exercises` to authenticated users. It returns
+`{ exercises }` with active entries from the predefined seeded MVP catalog, ordered by name.
+Each entry contains `id`, `name`, `muscleGroup`, `equipment` and `isActive`. Catalog administration
+and advanced search/filtering remain outside this issue.
+
+The following routes require an authenticated member/trainer who owns the parent program:
+
+| Method | Path | Request / response |
+|---|---|---|
+| GET | `/api/programs/:programId/days/:dayId/exercises` | `{ exercises }` ordered by position |
+| POST | `/api/programs/:programId/days/:dayId/exercises` | `{ exerciseId, position, targetSets, targetReps, targetWeightKg? }` → `201 { exercise }` |
+| PATCH | `/api/programs/:programId/days/:dayId/exercises/:entryId` | Any nonempty subset of the create fields → `{ exercise }` |
+| DELETE | `/api/programs/:programId/days/:dayId/exercises/:entryId` | Removes the planned entry → `204` |
+| PUT | `/api/programs/:programId/days/:dayId/exercises/order` | `{ exerciseIds: [entryId, ...] }` → `{ exercises }` with positions `1..N` |
+
+`GET /api/programs/:programId` also includes each day's `exercises` ordered by position.
+Planned entries embed catalog details under `exercise`, including for an existing selection that
+has since been deactivated. New or changed catalog selections must be active. The same catalog
+exercise may appear more than once; use the **planned entry IDs**, not catalog IDs, when editing,
+removing or reordering.
+
+Positions, target sets and target reps must be positive integers within PostgreSQL's integer range.
+Weight is optional/null, accepts zero, and must be between 0 and 9999.99 with at most two decimal
+places. Weight is returned as a decimal **string** or null. Omitted PATCH fields retain saved values;
+null clears weight. Unknown fields and client-supplied owner/parent IDs are rejected.
+
+Reorder requires every current entry ID exactly once, with no foreign or duplicate entries. All
+mutations lock the same day row and run in a database transaction. Reorder moves entries through
+unused positive positions before assigning the final order, so swaps respect the existing unique
+constraint throughout. Concurrent edits serialize; rejected operations leave the list unchanged.
+Add/edit position conflicts return `409` with `fields.position`; invalid input, inactive catalog
+selections or stale/incomplete reorder lists return `400`. Missing records/parent mismatches return
+`404`; non-owners and admins receive `403`, unauthenticated callers `401`. Other users' plans cannot
+be read or edited, even by a linked trainer. Removing an entry leaves other positions unchanged.
+
+No schema migration is needed. The UI for selecting exercises and editing targets/order is #20.
 
 ## Server permissions
 
