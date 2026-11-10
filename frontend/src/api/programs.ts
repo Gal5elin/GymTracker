@@ -1,6 +1,12 @@
 import { ApiError, type AuthClient } from './auth';
 export interface Program { id: string; name: string; description: string | null }
-export interface ProgramDay { id: string; programId: string; dayNumber: number; title: string }
+export interface CatalogExercise { id: string; name: string; muscleGroup: string; equipment: string; isActive: boolean }
+export interface PlannedExercise {
+  id: string; dayId: string; exerciseId: string; position: number; targetSets: number; targetReps: number;
+  targetWeightKg: string | null; exercise: CatalogExercise;
+}
+export interface ExerciseTargets { exerciseId?: string; position?: number; targetSets: number; targetReps: number; targetWeightKg: number | null }
+export interface ProgramDay { id: string; programId: string; dayNumber: number; title: string; exercises?: PlannedExercise[] }
 export interface ProgramDetail extends Program { days: ProgramDay[] }
 export function createProgramsApi(client: AuthClient) {
   async function send<T>(path: string, method: string, body?: object, signal?: AbortSignal): Promise<T> {
@@ -23,6 +29,6 @@ export function createProgramsApi(client: AuthClient) {
     list: (signal?: AbortSignal) => send<{ programs: Program[] }>('', 'GET', undefined, signal),
     get: (id: string, signal?: AbortSignal) => send<{ program: ProgramDetail }>(`/${id}`, 'GET', undefined, signal),
     save: (id: string | null, data: { name: string; description: string | null }, signal?: AbortSignal) => send<{ program: Program }>(id ? `/${id}` : '', id ? 'PATCH' : 'POST', data, signal),
-    saveDay: (programId: string, dayId: string | null, data: { dayNumber: number; title: string }, signal?: AbortSignal) => send<{ day: ProgramDay }>(`/${programId}/days${dayId ? `/${dayId}` : ''}`, dayId ? 'PATCH' : 'POST', data, signal),
+    saveDay: (programId: string, dayId: string | null, data: { dayNumber: number; title: string; exercises?: PlannedExercise[] }, signal?: AbortSignal) => send<{ day: ProgramDay }>(`/${programId}/days${dayId ? `/${dayId}` : ''}`, dayId ? 'PATCH' : 'POST', data, signal),
   };
 }
