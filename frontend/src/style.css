@@ -270,3 +270,10 @@ textarea::placeholder { color: #999; }
 .session-skeleton.short { width: 60%; }
 @keyframes session-pulse { to { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { .session-skeleton { animation: none; } }
+
+.program-editor { padding: 24px; max-width: 680px; margin-bottom: 24px; }
+.program-editor h2 { margin-bottom: 24px; }
+.program-editor fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
+.program-editor textarea { margin-top: 0; }
+.editor-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+.program-card h3, .day-card h2, .page-description { overflow-wrap: anywhere; }

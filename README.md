@@ -124,7 +124,10 @@ or IDs `400`, missing records `404`, and duplicate day numbers within a program 
 `fields.dayNumber` message. The database uniqueness constraint also protects concurrent requests.
 Program/day validation errors return `{ error, fields }`. No schema migration is needed.
 
-The authenticated program editor is tracked separately in #18; this issue adds the API only.
+The authenticated program/day editor (#18) is available at `/#programs` for members and trainers.
+Create a program, open it, and add or edit its numbered days. The editor shows validation, duplicate-number
+and denied-edit feedback and retries failed loads/saves without discarding entered values. Exercise
+planning is handled in #19–#20; day cards do not start workouts yet.
 
 ## Server permissions
 
