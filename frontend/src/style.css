@@ -293,3 +293,7 @@ textarea::placeholder { color: #999; }
 
 .saved-workout-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
 .notes-panel h3 { margin-top: 24px; }
+
+.history-row { color: inherit; text-decoration: none; }
+.history-title strong, .history-title small, .summary-exercise h2 { overflow-wrap: anywhere; }
+.history-more { margin: 24px 12px 0 0; }

@@ -13,7 +13,7 @@ function SavedPlan({ workout, client, onFinished, onChoose }: { workout: Workout
     <p className="muted small workout-started">Started {new Date(workout.startedAt).toLocaleString()}</p>
     {!plan ? <div className="panel"><EmptyState title="Saved plan unavailable">The saved plan for this workout is unavailable. Its original exercises cannot be reconstructed from the current program.</EmptyState></div> : null}
     <WorkoutSets key={workout.id} client={client} workout={workout} onCompletedChange={setCompleted} onFinished={onFinished}/>
-    {completed && <Button className="back-link" onClick={onChoose}>Choose another workout</Button>}
+    {completed && <div className="editor-actions"><a className="button button-primary" href={`#history/${workout.id}`}>View in history</a><Button onClick={onChoose}>Choose another workout</Button></div>}
   </>;
 }
 

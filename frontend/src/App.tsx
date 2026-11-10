@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createMockWorkoutService, type Snapshot, type Workout, type WorkoutService } from './data/workouts';
 import { Badge, Button, EmptyState, Icon, PageHeading, type IconName } from './components/ui';
 import { WorkoutScreen } from './components/WorkoutScreen';
+import HistoryRows from './components/HistoryRows';
 import ProgramCard from './components/ProgramCard';
 import AppShell from './components/AppShell';
 
@@ -20,7 +21,7 @@ const defaultService = createMockWorkoutService({ empty: params.get('demo') === 
 
 function HistoryList({ workouts, onOpen, onStart }: { workouts: Workout[]; onOpen: (id: string) => void; onStart: () => void }) {
   if (!workouts.length) return <div className="panel"><EmptyState title="No completed workouts" action={<Button variant="primary" onClick={onStart}>Choose a workout<Icon name="arrow" size={16}/></Button>}>Completed workouts will appear here.</EmptyState></div>;
-  return <div className="history-list panel"><div className="history-head"><span>Session</span><span>Recorded</span><span>Duration</span><span/></div>{workouts.map((workout) => <button className="history-row" key={workout.id} onClick={() => onOpen(workout.id)}><div className="history-title"><span className="date-tile"><strong>{new Date(workout.startedAt).getDate()}</strong><span>{new Date(workout.startedAt).toLocaleDateString('en', { month: 'short' })}</span></span><span><strong>{workout.day.name}</strong><small>{workout.programName}</small></span></div><span className="history-sets">{workout.sets.length} sets</span><span className="history-duration">{formatDuration(workout)}</span><Icon name="chevron" size={17}/></button>)}</div>;
+  return <HistoryRows rows={workouts.map(workout => ({ id: workout.id, startedAt: workout.startedAt, finishedAt: workout.finishedAt, title: workout.day.name, programName: workout.programName, setCount: workout.sets.length }))} onOpen={onOpen}/>;
 }
 function Summary({ workout, onBack }: { workout: Workout; onBack: () => void }) {
   return <><Button className="back-link" variant="ghost" onClick={onBack}>← Back to history</Button><PageHeading eyebrow="Workout complete" title={workout.day.name} description={`${workout.programName} · ${formatDate(workout.startedAt)}`} action={<Badge dark><Icon name="check" size={13}/>Completed</Badge>}/><div className="stats-grid summary-stats"><Stat label="Recorded sets" value={workout.sets.length}/><Stat label="Exercises recorded" value={new Set(workout.sets.map((set) => set.position)).size}/><Stat label="Session duration" value={formatDuration(workout)}/></div><div className="summary-exercises">{workout.day.exercises.map((exercise, position) => {
