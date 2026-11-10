@@ -298,8 +298,48 @@ After finishing, the screen shows the server's saved notes and completion time w
 locked. It also reloads saved sets for the completed summary. The URL becomes `/#workout/:sessionId`
 so the owner can reload or return to the completed state without browser storage. These links use
 the same login/role guards and owner-only API as the active screen. **Choose another workout**
-returns to launch choices. The history list remains a separate feature (#29–#30). Unsaved notes
+returns to launch choices. History APIs are available in #29; the History tab follows in #30. Unsaved notes
 remain in memory only until completion or leaving the screen; completion persists them in PostgreSQL.
+
+## Private workout history
+
+US-14 backend (#29) adds owner-only completed history:
+
+| Method | Path | Response |
+|---|---|---|
+| GET | `/api/workout-sessions/history?limit=20&cursor=<id>` | `{ workouts, nextCursor }` |
+| GET | `/api/workout-sessions/history/:sessionId` | `{ workout }` |
+
+The list includes only the authenticated actor's `COMPLETED` workouts, ordered by start time
+newest first, then UUID descending to break ties. Each summary contains `id`, `status`, `startedAt`,
+`finishedAt`, `program: { id, name }`, `day: { id, dayNumber, title }`, `snapshotAvailable` and
+`setCount` (the number actually recorded, not planned). Empty history returns an empty list.
+
+The default page size is 20; `limit` must be a positive integer string up to 100. Pass the returned
+`nextCursor` for the next page; null marks the end. Cursor IDs must belong to the actor's completed
+history. Invalid, foreign, active-workout or missing cursors return `400`. Unknown query parameters,
+including attempts to select another member or status, are rejected.
+
+Detail includes `id`, `status`, start/completion times, `notes`, the saved program/day labels,
+`snapshotAvailable` and `exercises`. Exercise groups originate **only from performed sets**, ordered
+by `exercisePosition`; unperformed planned exercises are omitted. Each group has `exerciseId`,
+`exercisePosition`, saved `name`, `muscleGroup`, `equipment` and its ordered `sets`. Sets contain
+`id`, `setNumber`, actual `reps`, actual `weightKg` (decimal string or null) and `createdAt`.
+Repeated occurrences of a catalog exercise remain separate by position, and zero weight stays zero.
+Target values do not substitute for actual performance.
+
+Names come only from the workout snapshot. Program/day edits, exercise removal or reordering and
+catalog edits/deactivation cannot change these results. Legacy or unsupported snapshots return
+`snapshotAvailable: false` and null program/day/exercise labels while preserving actual sets and
+notes; live names are never substituted. A missing snapshot match for an individual performed
+entry likewise leaves its descriptive labels null. Legacy completion times can remain null.
+
+Members and trainers can read only their own history through these endpoints. An accepted trainer
+link or ownership of a source program does not grant access to a recipient's private history;
+separate trainer-read endpoints remain in their own issues. Existing assigned-workout history stays
+with the recipient after collaboration ends. Missing login returns `401`, non-owners/admins `403`,
+invalid IDs `400`, and missing or non-completed history details `404`. Responses are `no-store`.
+There are no history write endpoints and no schema migration. The connected History tab is #30.
 
 ## Server permissions
 

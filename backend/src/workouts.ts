@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { workoutPlanSchema } from './workout-plan.js';
+import { workoutHistoryRouter } from './workout-history.js';
 import { workoutSetsRouter } from './workout-sets.js';
 import { z } from 'zod';
 import { plannedExerciseInclude } from './program-exercises.js';
@@ -13,6 +14,7 @@ const completionInput = z.strictObject({
 });
 const startInput = z.strictObject({ programId: z.uuid(), dayId: z.uuid(), assignmentId: z.uuid().optional() });
 export const workoutsRouter = Router();
+workoutsRouter.use('/history', workoutHistoryRouter);
 workoutsRouter.use('/:sessionId/sets', workoutSetsRouter);
 
 workoutsRouter.post('/', async (req, res) => {
