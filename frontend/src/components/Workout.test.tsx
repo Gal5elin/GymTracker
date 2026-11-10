@@ -21,7 +21,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(
 async function open(workout: ActiveWorkout | null = null, programs = [own, assigned]) {
   const fetch = vi.fn().mockResolvedValueOnce(ok({ accessToken: 'token', tokenType: 'Bearer', expiresIn: 3600, user })).mockResolvedValueOnce(ok({ workout }));
   if (!workout) fetch.mockResolvedValueOnce(ok({ programs }));
-  vi.stubGlobal('fetch', fetch); const client = createAuthClient(); await client.login('member@example.com', 'password');
+  vi.stubGlobal('fetch', (url: string, init?: RequestInit) => url.endsWith('/sets') ? Promise.resolve(ok({ sets: [] })) : url.endsWith('/workout') ? Promise.resolve(ok({ workout: active })) : fetch(url, init)); const client = createAuthClient(); await client.login('member@example.com', 'password');
   const view = render(<Workout client={client}/>);
   await waitFor(() => expect(screen.queryByLabelText('Loading workout')).toBeNull());
   return { fetch, client, view };
@@ -103,7 +103,7 @@ it('clears the account if a protected workout request is rejected', async () => 
   await screen.findByRole('alert'); expect(client.getSession()).toBeNull();
 });
 it('opens the saved workout through the real workspace and restores it after navigation', async () => {
-  const fetch = vi.fn().mockImplementation((url: string) => Promise.resolve(ok(url.endsWith('/login') ? { accessToken: 'token', tokenType: 'Bearer', expiresIn: 3600, user } : url.endsWith('/me') ? { user } : { workout: active })));
+  const fetch = vi.fn().mockImplementation((url: string) => Promise.resolve(ok(url.endsWith('/login') ? { accessToken: 'token', tokenType: 'Bearer', expiresIn: 3600, user } : url.endsWith('/me') ? { user } : url.endsWith('/sets') ? { sets: [] } : { workout: active })));
   vi.stubGlobal('fetch', fetch); const client = createAuthClient(); await client.login('member@example.com', 'password');
   window.history.replaceState(null, '', '#workout'); render(<Root client={client}/>);
   expect(await screen.findByRole('heading', { name: 'Saved day name' })).toBeTruthy();
@@ -116,7 +116,7 @@ it('opens the saved workout through the real workspace and restores it after nav
 it('restores an active workout after a full reload with a fresh auth client', async () => {
   const fetch = vi.fn().mockImplementation((url: string) => Promise.resolve(ok(url.endsWith('/session')
     ? { accessToken: 'restored-token', tokenType: 'Bearer', expiresIn: 3600, user }
-    : url.endsWith('/me') ? { user } : { workout: active })));
+    : url.endsWith('/me') ? { user } : url.endsWith('/sets') ? { sets: [] } : { workout: active })));
   vi.stubGlobal('fetch', fetch); window.history.replaceState(null, '', '#workout');
   render(<Root/>);
   expect(await screen.findByRole('heading', { name: 'Saved day name' })).toBeTruthy();

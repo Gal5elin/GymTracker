@@ -2,16 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, type AuthClient } from '../api/auth';
 import { createWorkoutsApi, type ActiveWorkout, type WorkoutOption } from '../api/workouts';
 import { Badge, Button, EmptyState, PageHeading } from './ui';
+import WorkoutSets from './WorkoutSets';
 import ProgramCard from './ProgramCard';
 
-function SavedPlan({ workout }: { workout: ActiveWorkout }) {
+function SavedPlan({ workout, client }: { workout: ActiveWorkout; client: AuthClient }) {
+  const [completed, setCompleted] = useState(false);
   const plan = workout.planSnapshot?.version === 1 ? workout.planSnapshot : null;
   return <>
-    <PageHeading eyebrow="Workout in progress" title={plan?.day.title ?? 'Active workout'} description={plan ? `${plan.program.name} · Day ${plan.day.dayNumber}` : undefined} action={<Badge dark>In progress</Badge>}/>
+    <PageHeading eyebrow={completed ? 'Workout complete' : 'Workout in progress'} title={plan?.day.title ?? 'Active workout'} description={plan ? `${plan.program.name} · Day ${plan.day.dayNumber}` : undefined} action={<Badge dark>{completed ? 'Completed' : 'In progress'}</Badge>}/>
     <p className="muted small workout-started">Started {new Date(workout.startedAt).toLocaleString()}</p>
     {!plan ? <div className="panel"><EmptyState title="Saved plan unavailable">The saved plan for this workout is unavailable. Its original exercises cannot be reconstructed from the current program.</EmptyState></div>
-      : <ol className="planned-exercises">{[...plan.exercises].sort((a, b) => a.position - b.position).map(entry => <li key={entry.programExerciseId} className="panel planned-exercise"><div><span className="eyebrow">Exercise {entry.position}</span><h2>{entry.name}</h2><p>{entry.muscleGroup} · {entry.equipment}</p><p>{entry.targetSets} sets × {entry.targetReps} reps · {entry.targetWeightKg === null ? 'No target weight' : `${entry.targetWeightKg} kg`}</p></div></li>)}</ol>}
-    <p className="notice">Your workout is active. Set logging and workout completion are coming soon.</p>
+      : <WorkoutSets key={workout.id} client={client} workout={workout} onCompletedChange={setCompleted}/>}
+    {!completed && <p className="notice">Workout completion is coming soon.</p>}
   </>;
 }
 
@@ -64,7 +66,7 @@ export default function Workout({ client }: { client: AuthClient }) {
   const selected = programs.find(program => program.id === selectedId);
   return <div ref={heading}>
     {loading ? <><PageHeading title="Workout"/><div className="panel program-editor" aria-busy="true" aria-label="Loading workout"><div className="session-skeleton"/><div className="session-skeleton short"/></div></>
-      : workout && !loadError ? <SavedPlan workout={workout}/>
+      : workout && !loadError ? <SavedPlan key={workout.id} workout={workout} client={client}/>
       : <>
         {selected && !loadError && <Button variant="ghost" className="back-link" disabled={!!pendingDay} onClick={() => { setSelectedId(null); setError(''); }}>← All workout programs</Button>}
         <PageHeading title="Workout" description={selected ? selected.name : 'Choose a program and training day to begin.'}/>

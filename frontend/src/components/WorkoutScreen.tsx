@@ -1,34 +1,13 @@
 import { useState } from 'react';
 import type { PlannedExercise, RecordedSet, Workout, WorkoutService } from '../data/workouts';
-import { validateSet } from '../data/workouts';
+import SetEntryRow from './SetEntryRow';
 import { Badge, Button, Icon, PageHeading } from './ui';
 
 function SetRow({ exercise, position, number, saved, workoutId, service, onUpdate }: { exercise: PlannedExercise; position: number; number: number; saved?: RecordedSet; workoutId: string; service: WorkoutService; onUpdate: (workout: Workout) => void }) {
-  const [reps, setReps] = useState(String(exercise.reps));
-  const [weight, setWeight] = useState(exercise.weight === null ? '' : String(exercise.weight));
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const id = `${workoutId}-${position}-${number}`;
-  async function save() {
-    setError('');
-    try {
-      if (!reps.trim()) throw new Error('Enter the number of reps for this set.');
-      const actualReps = Number(reps);
-      const actualWeight = weight.trim() === '' ? null : Number(weight);
-      validateSet(actualReps, actualWeight);
-      setBusy(true);
-      onUpdate(await service.saveSet(workoutId, exercise.id, position, number, actualReps, actualWeight));
-    } catch (err) { setError(err instanceof Error ? err.message : 'Could not save this set. Try again.'); }
-    finally { setBusy(false); }
-  }
-  return <div className={`set-row ${saved ? 'set-saved' : ''}`}>
-    <span className="set-number">{String(number).padStart(2, '0')}</span>
-    <span className="set-target">{exercise.reps} × {exercise.weight === null ? 'BW' : `${exercise.weight} kg`}</span>
-    <label className="number-field"><span className="sr-only">Reps for {exercise.name}, set {number}</span><input id={`${id}-reps`} type="number" inputMode="numeric" min="1" step="1" value={saved ? saved.reps : reps} disabled={!!saved || busy} onChange={(e) => setReps(e.target.value)} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined}/></label>
-    <label className="number-field"><span className="sr-only">Weight in kg for {exercise.name}, set {number}</span><input type="number" inputMode="decimal" min="0" max="9999.99" step="0.01" placeholder="—" value={saved ? saved.weight ?? '' : weight} disabled={!!saved || busy} onChange={(e) => setWeight(e.target.value)} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined}/></label>
-    <Button className="save-set" variant={saved ? 'ghost' : 'secondary'} disabled={!!saved || busy} onClick={save} aria-label={saved ? `Set ${number} of ${exercise.name} saved` : `Save set ${number} of ${exercise.name}`}><Icon name="check" size={16}/><span>{saved ? 'Saved' : busy ? 'Saving…' : 'Save'}</span></Button>
-    {error && <p id={`${id}-error`} className="field-error" role="alert">{error}</p>}
-  </div>;
+  return <SetEntryRow label={exercise.name} number={number} targetReps={exercise.reps} targetWeight={exercise.weight} saved={saved ? { reps: saved.reps, weight: saved.weight } : undefined} initialReps={String(exercise.reps)} initialWeight={exercise.weight === null ? '' : String(exercise.weight)} onSave={async (reps, weight, signal) => {
+    const result = await service.saveSet(workoutId, exercise.id, position, number, reps, weight);
+    if (!signal.aborted) onUpdate(result);
+  }}/>;
 }
 function ExerciseCard({ exercise, position, workout, service, onUpdate }: { exercise: PlannedExercise; position: number; workout: Workout; service: WorkoutService; onUpdate: (workout: Workout) => void }) {
   const recorded = workout.sets.filter((set) => set.position === position);
