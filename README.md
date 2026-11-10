@@ -217,7 +217,7 @@ Choose a program and a nonempty day to start. The frontend prevents duplicate cl
 selection after a failed start, offers refreshed choices for stale/denied selections and opens the
 current active workout after a conflict. Empty programs/days and missing legacy snapshots have
 explicit states. The saved view shows ordered exercises and target sets/reps/optional weight;
-set logging and completion remain in subsequent issues. The independent demo is unchanged.
+set logging is connected in #26; completion remains in the following issues. The independent demo is unchanged.
 
 ## Performed-set recording
 
@@ -250,7 +250,18 @@ that lock. The existing database uniqueness constraint also protects concurrent 
 `GET /api/workout-sessions/:sessionId/sets` returns `{ sets }`, sorted by exercise position and
 set number. Only the owner can read this endpoint, including after completion; it never returns
 another member's data. Saved sets are append-only through this API: edits/removal are not exposed.
-No schema migration is needed. Frontend set entry is the separate issue #26.
+No schema migration is needed. Set entry (#26) is connected in the **Workout** tab.
+The active view reloads saved sets and workout state before enabling writes, then shows one blank
+next-set row per exercise. Actual reps must be entered; blank weight remains null even when the
+plan has a target weight. Saving a row makes it read-only and opens the next set, including beyond
+the planned target count. Repeated exercise occurrences are distinguished by snapshot position.
+
+Failed saves retain entered values. Duplicate/status conflicts reload authoritative saved values
+and workout state without overwriting an existing set; completed workouts disable further entry.
+**Reload saved sets** recovers server data without discarding drafts for other unsaved rows.
+Navigation/reload restores recorded sets from the API; unsaved drafts are held only while the
+current screen is mounted. No browser storage is used for workout data. Shared set-row controls
+also serve the separate demo. Workout completion remains in #27–#28.
 
 ## Server permissions
 
