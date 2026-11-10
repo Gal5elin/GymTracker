@@ -217,7 +217,7 @@ Choose a program and a nonempty day to start. The frontend prevents duplicate cl
 selection after a failed start, offers refreshed choices for stale/denied selections and opens the
 current active workout after a conflict. Empty programs/days and missing legacy snapshots have
 explicit states. The saved view shows ordered exercises and target sets/reps/optional weight;
-set logging is connected in #26; completion remains in the following issues. The independent demo is unchanged.
+set logging is connected in #26; completion has an API in #27 and its frontend flow follows in #28. The independent demo is unchanged.
 
 ## Performed-set recording
 
@@ -244,7 +244,7 @@ Duplicate `(sessionId, exercisePosition, setNumber)` values return `409` with `f
 retries never overwrite the originally saved performance. Invalid input or snapshot membership returns
 `400`, missing workouts `404`, non-owner/admin callers `403`, and missing authentication `401`.
 Completed workouts return `409`. A database transaction locks the workout row before checking status
-and inserting; future finalization must use the same `lockOwnedWorkout` helper and check state under
+and inserting; finalization uses the same `lockOwnedWorkout` helper and checks state under
 that lock. The existing database uniqueness constraint also protects concurrent duplicates.
 
 `GET /api/workout-sessions/:sessionId/sets` returns `{ sets }`, sorted by exercise position and
@@ -261,7 +261,33 @@ and workout state without overwriting an existing set; completed workouts disabl
 **Reload saved sets** recovers server data without discarding drafts for other unsaved rows.
 Navigation/reload restores recorded sets from the API; unsaved drafts are held only while the
 current screen is mounted. No browser storage is used for workout data. Shared set-row controls
-also serve the separate demo. Workout completion remains in #27–#28.
+also serve the separate demo. Workout completion is available in the API (#27); its controls follow in #28.
+
+## Workout completion and notes
+
+US-13 backend (#27) supports `POST /api/workout-sessions/:sessionId/complete` with
+`{ notes? }` (an empty body is also accepted). Only the owner may complete an `IN_PROGRESS`
+workout, and at least one saved performed set is required. Completing all planned sets is not
+required. Success returns `200 { workout }` with `status: COMPLETED`, a server-assigned `finishedAt`
+and the stored notes. The original start time, snapshot and performed sets are unchanged.
+
+Notes are optional/null, trimmed and limited to 2,000 characters after trimming. Blank or null
+clears notes; omission preserves an existing note. Wrong types, excess length and unknown fields
+(including client-supplied status, owner, sets or completion time) return `400`. An empty workout
+also returns `400` and stays active without saving notes or a completion time. Authentication,
+ownership and role rules match set recording: `401` without authentication, `403` for another
+owner or admin, `400` for malformed IDs and `404` for missing workouts.
+
+Completion takes the same workout row lock as set recording, then checks state and saved sets
+inside the transaction before saving status/time/notes together. A racing set can commit before
+completion or be rejected afterward; it cannot be written into an already completed workout.
+Concurrent completion requests produce one success and one `409`; repeated completion cannot
+change the first saved notes or time. Further sets return `409`. The completed workout no longer
+appears in `/api/workout-sessions/active`, but owner-only workout and saved-set reads remain available.
+If a completion response is lost, clients should read the workout state before offering a retry;
+this endpoint deliberately rejects repeat completion rather than overwriting it.
+
+No schema migration is needed. The frontend Finish workout and notes flow is #28.
 
 ## Server permissions
 

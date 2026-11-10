@@ -4,10 +4,13 @@ import { workoutSetsRouter } from './workout-sets.js';
 import { z } from 'zod';
 import { plannedExerciseInclude } from './program-exercises.js';
 import { prisma } from './db.js';
-import { authenticatedUser, HttpError, requireWorkoutOwner } from './permissions.js';
+import { authenticatedUser, HttpError, lockOwnedWorkout, requireWorkoutOwner } from './permissions.js';
 
 export { workoutPlanSchema, type WorkoutPlan } from './workout-plan.js';
 
+const completionInput = z.strictObject({
+  notes: z.string().trim().max(2000).nullable().transform(value => value || null).optional(),
+});
 const startInput = z.strictObject({ programId: z.uuid(), dayId: z.uuid(), assignmentId: z.uuid().optional() });
 export const workoutsRouter = Router();
 workoutsRouter.use('/:sessionId/sets', workoutSetsRouter);
@@ -54,6 +57,26 @@ workoutsRouter.post('/', async (req, res) => {
     return { workout, created: true };
   });
   res.location(`/api/workout-sessions/${result.workout.id}`).status(result.created ? 201 : 200).json({ workout: result.workout });
+});
+workoutsRouter.post('/:sessionId/complete', async (req, res) => {
+  const user = authenticatedUser(res);
+  await requireWorkoutOwner(user, req.params.sessionId);
+  const input = completionInput.safeParse(req.body === undefined ? {} : req.body);
+  if (!input.success) {
+    res.status(400).json({ error: 'Invalid workout completion details', fields: z.flattenError(input.error).fieldErrors }); return;
+  }
+  const workout = await prisma.$transaction(async tx => {
+    const current = await lockOwnedWorkout(tx, user, req.params.sessionId);
+    if (current.status !== 'IN_PROGRESS') throw new HttpError(409, 'This workout is already complete');
+    // The set API and database constraints ensure persisted performed values are valid.
+    const saved = await tx.sessionSet.findFirst({ where: { sessionId: current.id }, select: { id: true } });
+    if (!saved) throw new HttpError(400, 'Save at least one set before completing your workout');
+    return tx.workoutSession.update({
+      where: { id: current.id },
+      data: { status: 'COMPLETED', finishedAt: new Date(), ...(input.data.notes === undefined ? {} : { notes: input.data.notes }) },
+    });
+  });
+  res.json({ workout });
 });
 // Read-only launch choices: assignments grant training access, never plan editing rights.
 workoutsRouter.get('/options', async (_req, res) => {
