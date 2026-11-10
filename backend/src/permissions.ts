@@ -5,7 +5,7 @@ import { prisma } from './db.js';
 
 export type AuthenticatedUser = Pick<User, 'id' | 'role' | 'isActive'>;
 export class HttpError extends Error {
-  constructor(public status: 400 | 401 | 403 | 404, message: string) { super(message); }
+  constructor(public status: 400 | 401 | 403 | 404 | 409, message: string) { super(message); }
 }
 export function authenticatedUser(res: Response): AuthenticatedUser {
   const user = res.locals.user as AuthenticatedUser | undefined;

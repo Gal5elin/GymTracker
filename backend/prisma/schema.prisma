@@ -138,6 +138,7 @@ model WorkoutSession {
   memberId     String             @map("member_id") @db.Uuid
   assignmentId String?            @map("assignment_id") @db.Uuid
   programDayId String             @map("program_day_id") @db.Uuid
+  planSnapshot Json?              @map("plan_snapshot") @db.JsonB
   status       WorkoutStatus      @default(IN_PROGRESS)
   startedAt    DateTime           @default(now()) @map("started_at") @db.Timestamptz(6)
   finishedAt   DateTime?          @map("finished_at") @db.Timestamptz(6)

@@ -15,7 +15,7 @@ Uporabljena bo **PostgreSQL**, relacijska podatkovna baza. Primarni ključi so U
 | `program_days` | `id` PK, `program_id` FK → workout_programs, `day_number`, `title` | Dnevi znotraj programa |
 | `program_exercises` | `id` PK, `day_id` FK → program_days, `exercise_id` FK → exercises, `position`, `target_sets`, `target_reps`, `target_weight_kg` NULL | Načrtovane vaje v posameznem dnevu |
 | `program_assignments` | `id` PK, `program_id` FK → workout_programs, `member_id` FK → users, `assigned_by` FK → users, `assigned_at` | Dodelitve programov članom |
-| `workout_sessions` | `id` PK, `member_id` FK → users, `assignment_id` FK → program_assignments NULL, `program_day_id` FK → program_days, `status` (`IN_PROGRESS`/`COMPLETED`), `started_at`, `finished_at` NULL, `notes` | Posamezen izveden trening |
+| `workout_sessions` | `id` PK, `member_id` FK → users, `assignment_id` FK → program_assignments NULL, `program_day_id` FK → program_days, `status` (`IN_PROGRESS`/`COMPLETED`), `started_at`, `finished_at` NULL, `notes`, `plan_snapshot` JSONB NULL | Posamezen izveden trening |
 | `session_sets` | `id` PK, `session_id` FK → workout_sessions, `exercise_id` FK → exercises, `exercise_position`, `set_number`, `reps`, `weight_kg` NULL | Dejanske serije, ki jih je član izvedel |
 
 ## Povezave in omejitve
@@ -100,6 +100,7 @@ erDiagram
       uuid member_id FK
       uuid assignment_id FK
       uuid program_day_id FK
+      jsonb plan_snapshot
       string status
       datetime started_at
       datetime finished_at
@@ -119,3 +120,24 @@ erDiagram
 Vloga uporabnika (`role`) in povezava s trenerjem se preverjata v backendu, ne le v uporabniškem vmesniku. Ob deaktivaciji vaje ostane njen zapis zaradi obstoječih programov in zgodovine. Ob preklicu sodelovanja ostanejo treningi v bazi in so vidni članu, trener pa izgubi dostop. Preverjanje, da dan pripada programu v izbrani dodelitvi in da dodelitev pripada trenutnemu članu, se izvede pred začetkom treninga.
 
 Za MVP se spreminjanje že uporabljenih programov poenostavi: obstoječi zaključeni treningi ostanejo nespremenjeni; priporočljivo je urejati program med treningi, saj aktivna izvedba uporablja podatke, s katerimi je bila začeta.
+
+
+## Posnetek načrta ob začetku treninga
+
+`workout_sessions.plan_snapshot` hrani strežniško ustvarjen, verzioniran JSON (`version: 1`):
+program (`id`, `name`, `description`), dan (`id`, `dayNumber`, `title`) in urejen seznam vaj.
+Vsaka vaja vsebuje izvorni `programExerciseId`, `exerciseId`, `position`, ime, mišično skupino,
+opremo, `targetSets`, `targetReps` in `targetWeightKg` (decimalni niz ali NULL). Več pojavitev
+iste kataloške vaje ostane ločenih. Posnetek nima živega sklica na vrstico `program_exercises`,
+zato odstranitev ali urejanje načrtovane vaje ne spremeni že začetega treninga.
+
+Posnetek se skupaj s treningom in morebitno samododelitvijo shrani v eni transakciji. Začetek
+zaklene uporabnika, program in dan; spremembe vrstnega reda in ciljnih vrednosti uporabljajo
+isti zaklep dneva. Ponovljen začetek istega dne vrne trenutni aktivni trening, začetek drugega
+dne med aktivnim treningom pa je zavrnjen. Član ohrani dostop do prej dodeljenega programa tudi
+po preklicu sodelovanja s trenerjem. Trener lahko izvaja članske funkcije zase.
+
+Migracija obstoječim treningom pusti `plan_snapshot = NULL`, saj iz trenutnega programa ni
+mogoče zanesljivo obnoviti nekdanjega načrta. Novi začetki prek API vedno ustvarijo posnetek.
+Prihodnje beleženje serij in prikaz načrta morata uporabljati posnetek; `session_sets` še vedno
+hrani dejansko izvedene vrednosti. Posnetek ni vir podatkov za izračun doseženega napredka.
