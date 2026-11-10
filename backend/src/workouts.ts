@@ -1,23 +1,16 @@
 import { Router } from 'express';
+import { workoutPlanSchema } from './workout-plan.js';
+import { workoutSetsRouter } from './workout-sets.js';
 import { z } from 'zod';
 import { plannedExerciseInclude } from './program-exercises.js';
 import { prisma } from './db.js';
 import { authenticatedUser, HttpError, requireWorkoutOwner } from './permissions.js';
 
+export { workoutPlanSchema, type WorkoutPlan } from './workout-plan.js';
+
 const startInput = z.strictObject({ programId: z.uuid(), dayId: z.uuid(), assignmentId: z.uuid().optional() });
-// Version the stored JSON so later features can validate and read it without consulting the live plan.
-export const workoutPlanSchema = z.strictObject({
-  version: z.literal(1),
-  program: z.strictObject({ id: z.uuid(), name: z.string(), description: z.string().nullable() }),
-  day: z.strictObject({ id: z.uuid(), dayNumber: z.number().int().positive(), title: z.string() }),
-  exercises: z.array(z.strictObject({
-    programExerciseId: z.uuid(), exerciseId: z.uuid(), position: z.number().int().positive(),
-    name: z.string(), muscleGroup: z.string(), equipment: z.string(),
-    targetSets: z.number().int().positive(), targetReps: z.number().int().positive(), targetWeightKg: z.string().nullable(),
-  })),
-});
-export type WorkoutPlan = z.infer<typeof workoutPlanSchema>;
 export const workoutsRouter = Router();
+workoutsRouter.use('/:sessionId/sets', workoutSetsRouter);
 
 workoutsRouter.post('/', async (req, res) => {
   const input = startInput.safeParse(req.body);

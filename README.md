@@ -219,6 +219,39 @@ current active workout after a conflict. Empty programs/days and missing legacy 
 explicit states. The saved view shows ordered exercises and target sets/reps/optional weight;
 set logging and completion remain in subsequent issues. The independent demo is unchanged.
 
+## Performed-set recording
+
+US-12 backend (#25) supports `POST /api/workout-sessions/:sessionId/sets` with
+`{ exerciseId, exercisePosition, setNumber, reps, weightKg? }`. Success returns `201 { set }`
+with the stored identifiers, actual performance and creation time. Only the workout owner may
+write, and only while it is `IN_PROGRESS`; trainers retain these functions for their own workouts.
+Owning the source program or having an accepted trainer link does not grant permission to write
+another member's sets. The session ID comes from the URL; actor and timestamps are server-assigned.
+Unknown fields are rejected.
+
+Exercise ID **and** position must match the workout's frozen snapshot, including distinct occurrences
+of the same catalog exercise. Live-plan reordering, replacement/removal, or catalog deactivation
+do not redefine that membership. Legacy or invalid snapshots cannot safely authorize new sets;
+they return `409` rather than falling back to the current program.
+
+Reps, set number and exercise position must be positive whole numbers within PostgreSQL's integer
+range. Weight is optional/null, permits zero, and must be 0–9999.99 with at most two decimal places.
+It is returned as a decimal string or null. Omitted weight stays null, never the planned weight.
+Actual reps/weight may differ from targets and the number of performed sets may exceed planned sets.
+Set numbers may have gaps.
+
+Duplicate `(sessionId, exercisePosition, setNumber)` values return `409` with `fields.setNumber`;
+retries never overwrite the originally saved performance. Invalid input or snapshot membership returns
+`400`, missing workouts `404`, non-owner/admin callers `403`, and missing authentication `401`.
+Completed workouts return `409`. A database transaction locks the workout row before checking status
+and inserting; future finalization must use the same `lockOwnedWorkout` helper and check state under
+that lock. The existing database uniqueness constraint also protects concurrent duplicates.
+
+`GET /api/workout-sessions/:sessionId/sets` returns `{ sets }`, sorted by exercise position and
+set number. Only the owner can read this endpoint, including after completion; it never returns
+another member's data. Saved sets are append-only through this API: edits/removal are not exposed.
+No schema migration is needed. Frontend set entry is the separate issue #26.
+
 ## Server permissions
 
 `backend/src/permissions.ts` provides role middleware and database-backed checks for program/day
