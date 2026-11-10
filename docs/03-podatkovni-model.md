@@ -8,6 +8,7 @@ Uporabljena bo **PostgreSQL**, relacijska podatkovna baza. Primarni ključi so U
 | Entiteta | Glavna polja | Namen |
 |---|---|---|
 | `users` | `id` PK, `email` UNIQUE, `password_hash`, `display_name`, `role` (`MEMBER`/`TRAINER`/`ADMIN`), `is_active`, `created_at` | Uporabniki in vloge |
+| `auth_sessions` | `id` PK, `token_hash` UNIQUE, `user_id` FK → users, `expires_at`, `created_at` | Trajne prijavne seje; hrani se le povzetek skrivnega žetona (ADR 0004) |
 | `trainer_links` | `id` PK, `trainer_id` FK → users, `member_id` FK → users, `status` (`PENDING`/`ACCEPTED`/`REJECTED`/`REVOKED`), `created_at` | Povabilo in soglasje za sodelovanje |
 | `exercises` | `id` PK, `name`, `muscle_group`, `equipment`, `is_active` | Globalni katalog vaj |
 | `workout_programs` | `id` PK, `owner_id` FK → users, `name`, `description`, `created_at` | Predloga programa, ki jo ustvari član ali trener |
@@ -18,6 +19,7 @@ Uporabljena bo **PostgreSQL**, relacijska podatkovna baza. Primarni ključi so U
 | `session_sets` | `id` PK, `session_id` FK → workout_sessions, `exercise_id` FK → exercises, `exercise_position`, `set_number`, `reps`, `weight_kg` NULL | Dejanske serije, ki jih je član izvedel |
 
 ## Povezave in omejitve
+- Uporabnik ima več prijavnih sej; izbris uporabnika izbriše njegove prijavne seje. Veljavnost seje preverimo pri vsakem zaščitenem zahtevku.
 - Uporabnik ustvari več programov; vsak program ima več dni, dan pa več načrtovanih vaj.
 - Kataloška vaja se lahko pojavi v več programih in v več izvedenih serijah.
 - Trener in član sta povezana prek `trainer_links`; povezava mora imeti status `ACCEPTED` za dodelitve in trenerjev vpogled.

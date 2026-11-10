@@ -23,7 +23,7 @@
 
 **Kriteriji sprejema:**
 1. Uporabnik se lahko prijavi z registriranim e-poštnim naslovom in pravilnim geslom.
-2. Ob uspešni prijavi sistem ustvari JWT za dostop do zaščitenih zahtevkov API.
+2. Ob uspešni prijavi sistem ustvari trajno strežniško sejo (30 dni) in JWT v pomnilniku za dostop do zaščitenih zahtevkov API. Osvežitev strani obnovi JWT s piškotkom HttpOnly (ADR 0004).
 3. Ob napačnem e-poštnem naslovu ali geslu sistem zavrne prijavo in prikaže sporočilo o neuspešni prijavi.
 4. Deaktiviran uporabniški račun se ne more prijaviti.
 5. Neprijavljen uporabnik ne more dostopati do zaščitenih podatkov prek API.
@@ -36,7 +36,7 @@
 
 **Kriteriji sprejema:**
 1. Prijavljenemu uporabniku je na voljo možnost »Odjava«.
-2. Ob odjavi aplikacija odstrani JWT iz pomnilnika odjemalca.
+2. Ob odjavi aplikacija odstrani JWT iz pomnilnika odjemalca, prekliče trenutno strežniško sejo in izbriše sejni piškotek. Že izdani JWT te seje ne omogoča več dostopa.
 3. Po odjavi uporabnika preusmeri na prijavno stran.
 4. Za nadaljnji dostop do zaščitenih strani in zahtevkov je potrebna ponovna prijava.
 

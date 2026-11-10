@@ -32,9 +32,10 @@ const sessions: string[] = [];
 const links: string[] = [];
 let member: string, other: string, trainer: string, admin: string;
 let memberProgram: string, trainerProgram: string, day: string, workout: string, trainerWorkout: string, link: string;
-function bearer(id: string) { return `Bearer ${jwt.sign({}, secret, { subject: id, issuer: 'gymtracker', audience: 'gymtracker-api', expiresIn: 3600 })}`; }
+function bearer(id: string) { return `Bearer ${jwt.sign({ sid: id }, secret, { subject: id, issuer: 'gymtracker', audience: 'gymtracker-api', expiresIn: 3600 })}`; }
 async function user(role: Role) {
   const record = await prisma.user.create({ data: { email: `${randomUUID()}@permissions.test`, passwordHash: 'not-used-for-login', displayName: role, role } });
+  await prisma.authSession.create({ data: { id: record.id, userId: record.id, tokenHash: randomUUID(), expiresAt: new Date(Date.now() + 86400000) } });
   users.push(record.id); return record.id;
 }
 async function program(ownerId: string) {

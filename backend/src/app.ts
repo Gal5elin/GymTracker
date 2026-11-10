@@ -4,15 +4,23 @@ import { HttpError, requireRoles } from './permissions.js';
 import { createAuthRouter, requireAuthentication } from './auth.js';
 import { registrationRouter } from './registration.js';
 
-export function createApp(frontendOrigin: string, jwtSecret: string) {
+export function createApp(frontendOrigin: string, jwtSecret: string, secureCookies = false) {
   if (jwtSecret.length < 32) throw new Error('JWT secret must contain at least 32 characters');
   const app = express();
   app.disable('x-powered-by');
-  app.use(cors({ origin: frontendOrigin }));
+  app.use(cors({ origin: frontendOrigin, credentials: true }));
+  // Cookie-backed authentication mutations must originate from our frontend.
+  app.use('/api/auth', (req, res, next) => {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
+        ((req.get('Origin') && req.get('Origin') !== frontendOrigin) || req.get('Sec-Fetch-Site') === 'cross-site')) {
+      res.status(403).json({ error: 'Untrusted request origin' }); return;
+    }
+    next();
+  });
   app.use(express.json({ limit: '100kb' }));
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
   app.use('/api/auth', registrationRouter);
-  app.use('/api/auth', createAuthRouter(jwtSecret));
+  app.use('/api/auth', createAuthRouter(jwtSecret, secureCookies));
   // Mount future feature routers after these namespace guards.
   app.use(['/api/programs', '/api/assignments', '/api/workout-sessions', '/api/progress', '/api/trainer-links'],
     requireAuthentication(jwtSecret), requireRoles('MEMBER', 'TRAINER'));

@@ -68,7 +68,18 @@ and a one-hour expiry. Token responses are marked `Cache-Control: no-store`.
 accounts return `401`. The reusable `requireAuthentication(secret)` middleware validates the token,
 loads the current active account, and supplies it as `res.locals.user` for future protected routes.
 Role and ownership authorization use the helpers described below. Health, registration and login remain public.
-Keep tokens in client memory when implementing login; logout removes that token, as specified in ADR 0004.
+Login also sets a persistent HttpOnly `gymtracker_session` cookie, backed by a hashed token in
+`auth_sessions`, with an absolute 30-day lifetime. `POST /api/auth/session` restores the in-memory
+access token after reload or access-token expiry. `POST /api/auth/logout` deletes the current session,
+clears the cookie and invalidates its access tokens. Each JWT must reference a live session via `sid`.
+Both endpoints use `credentials: include`; authentication mutations reject untrusted browser origins.
+Other devices retain their own sessions. See ADR 0004.
+
+Apply the migration with `npm run db:migrate -w backend` before starting the updated API.
+Production must set `NODE_ENV=production` to enable Secure cookies and serve both frontend and API
+via HTTPS on the same site (for example `app.example.com` and `api.example.com`). Configure
+`FRONTEND_ORIGIN` to the exact frontend origin. Local development uses `localhost` for both services;
+do not mix it with `127.0.0.1`. No localStorage or sessionStorage tokens are used.
 
 Integration tests require a separate database; they never seed or clear the development database.
 Create it once with PostgreSQL running:
@@ -119,7 +130,7 @@ these helpers; no test resource routes are exposed by the real app.
 | trainer@gymtracker.local | TRAINER |
 | admin@gymtracker.local | ADMIN |
 
-All use `SEED_PASSWORD` from `backend/.env` (example: `GymTracker-dev-123!`). Passwords are stored as Argon2id hashes. Seeding upserts accounts by email and six exercises by stable UUID, so rerunning it creates no duplicates. It resets demo account passwords/roles and the seeded catalog values. The seed is refused when `NODE_ENV=production`. The login API and frontend login flow are available at `/#login`; refresh requires signing in again.
+All use `SEED_PASSWORD` from `backend/.env` (example: `GymTracker-dev-123!`). Passwords are stored as Argon2id hashes. Seeding upserts accounts by email and six exercises by stable UUID, so rerunning it creates no duplicates. It resets demo account passwords/roles and the seeded catalog values. The seed is refused when `NODE_ENV=production`. The login API and frontend login flow are available at `/#login`; login survives page reloads for up to 30 days, until logout or expiry.
 
 ## Structure
 

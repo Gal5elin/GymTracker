@@ -7,7 +7,7 @@ import { createAuthClient } from './api/auth';
 vi.mock('./App', () => ({ default: () => <h1>Workout demo</h1> }));
 const user = { id: 'member-id', displayName: 'Member', email: 'member@example.com', role: 'MEMBER', isActive: true };
 function mockApi() {
-  return vi.fn().mockImplementation((url: string) => Promise.resolve(url.endsWith('/login')
+  return vi.fn().mockImplementation((url: string) => Promise.resolve(url.endsWith('/session') ? { ok: false, status: 401 } : url.endsWith('/login')
     ? { ok: true, json: async () => ({ accessToken: 'test-token', tokenType: 'Bearer', expiresIn: 3600, user }) }
     : { ok: true, json: async () => ({ user }) }));
 }
@@ -18,12 +18,12 @@ afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); window.h
 
 describe('protected navigation', () => {
   it.each(['#account', '#dashboard', '#programs', '#workout', '#history', '#progress', '#unknown', '#demo/unknown'])('requires login for a direct link to %s', async hash => {
-    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    const fetch = vi.fn().mockResolvedValue({ ok: false, status: 401 }); vi.stubGlobal('fetch', fetch);
     window.history.replaceState(null, '', hash); render(<Root/>);
-    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeTruthy();
     await waitFor(() => expect(window.location.hash).toBe('#login'));
     expect(screen.queryByText('Workout demo')).toBeNull();
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
   it.each(['#demo/dashboard', '#demo/programs', '#demo/workout', '#demo/history', '#demo/progress'])('keeps explicit public demo route %s available', hash => {
     window.history.replaceState(null, '', hash); render(<Root/>);
@@ -35,6 +35,7 @@ describe('protected navigation', () => {
     window.history.replaceState(null, '', '#account'); render(<Root client={client}/>);
     expect(await screen.findByText('Signed in as Member.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    await act(async () => { await Promise.resolve(); });
     const callsAfterLogout = fetch.mock.calls.length;
     navigate('#account', 'popstate');
     expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeTruthy();
@@ -55,7 +56,7 @@ describe('protected navigation', () => {
     vi.useFakeTimers();
     window.history.replaceState(null, '', '#account'); render(<Root client={client}/>);
     await act(async () => { await Promise.resolve(); });
-    act(() => { vi.advanceTimersByTime(3_600_001); });
+    await act(async () => { vi.advanceTimersByTime(3_600_001); });
     expect(client.getSession()).toBeNull();
     expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeTruthy();
     expect(window.location.hash).toBe('#login');
@@ -66,8 +67,29 @@ describe('protected navigation', () => {
     window.history.replaceState(null, '', '#account'); render(<Root client={client}/>);
     expect(await screen.findByText('Signed in as Member.')).toBeTruthy();
     vi.useFakeTimers(); vi.setSystemTime(Date.now() + 3_600_001);
-    act(() => { window.dispatchEvent(new Event('pageshow')); });
+    await act(async () => { window.dispatchEvent(new Event('pageshow')); });
     expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeTruthy();
     expect(client.getSession()).toBeNull();
   });
+});
+
+it('preserves a protected destination while restoring a persistent session', async () => {
+  let resolve!: (value: unknown) => void;
+  const fetch = vi.fn().mockImplementationOnce(() => new Promise(done => { resolve = done; })).mockResolvedValue({ ok: true, json: async () => ({ user }) });
+  vi.stubGlobal('fetch', fetch);
+  window.history.replaceState(null, '', '#history'); render(<Root/>);
+  expect(screen.getByRole('main', { name: 'Restoring session' })).toBeTruthy();
+  expect(window.location.hash).toBe('#history');
+  await act(async () => { await Promise.resolve(); resolve({ ok: true, json: async () => ({ accessToken: 'restored', expiresIn: 3600, user }) }); });
+  expect(await screen.findByRole('heading', { name: 'History' })).toBeTruthy();
+  expect(window.location.hash).toBe('#history');
+});
+
+it('offers retry after restoration fails without redirecting the requested page', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'restored', expiresIn: 3600, user }) }).mockResolvedValue({ ok: true, json: async () => ({ user }) }));
+  window.history.replaceState(null, '', '#history'); render(<Root/>);
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Could not restore your session. Please try again.');
+  expect(window.location.hash).toBe('#history');
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(await screen.findByRole('heading', { name: 'History' })).toBeTruthy();
 });

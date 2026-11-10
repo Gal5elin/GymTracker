@@ -25,12 +25,12 @@ describe('in-memory authenticated API client', () => {
     await expect(client.request('/api/auth/me')).rejects.toMatchObject({ status: 401 });
     expect(fetch).toHaveBeenCalledTimes(2);
   });
-  it('expires a session before sending another request', async () => {
+  it('restores an expired access token before sending another request', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
     const client = createAuthClient(); await client.login(user.email, 'password');
     vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 3_600_001);
-    await expect(client.request('/api/auth/me')).rejects.toMatchObject({ status: 401 });
-    expect(client.getSession()).toBeNull();
+    await client.request('/api/auth/me');
+    expect(client.getSession()?.expiresAt).toBeGreaterThan(Date.now());
   });
   it('does not establish a session after aborted or malformed login responses', async () => {
     const fetch = vi.fn().mockResolvedValueOnce(loginResponse()).mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) }); vi.stubGlobal('fetch', fetch);
@@ -62,7 +62,9 @@ describe('logout', () => {
     expect(client.getSession()).toBeNull();
     expect(listener).toHaveBeenCalledTimes(1);
     await expect(client.request('/api/auth/me')).rejects.toMatchObject({ status: 401 });
-    expect(fetch).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fetch).toHaveBeenCalledTimes(2);
     await client.login(user.email, 'password');
     expect(client.getSession()?.user).toEqual(user);
     unsubscribe();
@@ -82,6 +84,45 @@ describe('logout', () => {
     const pending = client.request('/api/auth/me');
     client.logout(); resolve({ ok: true, status: 200 });
     await expect(pending).rejects.toMatchObject({ status: 401 });
+    expect(client.getSession()).toBeNull();
+  });
+});
+
+describe('persistent session restoration', () => {
+  it('restores a new client using credentials without browser storage', async () => {
+    const fetch = vi.fn().mockResolvedValue(loginResponse()); vi.stubGlobal('fetch', fetch);
+    const client = createAuthClient();
+    const pending = client.restore(); const duplicate = client.restore();
+    expect(duplicate).toBe(pending);
+    await pending;
+    expect(client.getSession()?.user).toEqual(user);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0]).toEqual([expect.stringContaining('/api/auth/session'), expect.objectContaining({ method: 'POST', credentials: 'include' })]);
+  });
+  it('keeps a missing or revoked session signed out', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }));
+    const client = createAuthClient(); await client.restore();
+    expect(client.getSession()).toBeNull();
+  });
+  it('allows retry after a restoration network failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(loginResponse()));
+    const client = createAuthClient();
+    await expect(client.restore()).rejects.toThrow('offline');
+    await client.restore(); expect(client.getSession()?.user).toEqual(user);
+  });
+  it('ignores a restore response that arrives after logout', async () => {
+    let resolve!: (value: ReturnType<typeof loginResponse>) => void;
+    vi.stubGlobal('fetch', vi.fn().mockImplementationOnce(() => new Promise(done => { resolve = done; })).mockResolvedValue({ ok: true }));
+    const client = createAuthClient(); const pending = client.restore();
+    await Promise.resolve();
+    const logout = client.logout(); resolve(loginResponse());
+    await pending; await logout;
+    expect(client.getSession()).toBeNull();
+  });
+  it('reports server logout failures while immediately clearing local credentials', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(loginResponse()).mockRejectedValueOnce(new Error('offline')));
+    const client = createAuthClient(); await client.login(user.email, 'password');
+    await expect(client.logout()).rejects.toThrow('offline');
     expect(client.getSession()).toBeNull();
   });
 });

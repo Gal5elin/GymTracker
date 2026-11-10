@@ -38,6 +38,7 @@ model User {
   programs         WorkoutProgram[]
   assignments      ProgramAssignment[] @relation("AssignedMember")
   assignedPrograms ProgramAssignment[] @relation("AssignedBy")
+  authSessions     AuthSession[]
   sessions         WorkoutSession[]
 
   @@map("users")
@@ -168,4 +169,17 @@ model SessionSet {
   @@unique([sessionId, exercisePosition, setNumber])
   @@index([exerciseId])
   @@map("session_sets")
+}
+
+model AuthSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
 }
