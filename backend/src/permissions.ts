@@ -1,5 +1,5 @@
 import type { RequestHandler, Response } from 'express';
-import type { Role, User } from '@prisma/client';
+import type { Prisma, Role, User } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from './db.js';
 
@@ -70,4 +70,15 @@ export async function requireTrainerAssignment(user: AuthenticatedUser, programI
   const program = await requireProgramOwner(user, programId);
   await requireAcceptedMember(user, memberId);
   return program;
+}
+
+// Set recording and workout completion must share this row lock and check state after acquiring it.
+export async function lockOwnedWorkout(tx: Prisma.TransactionClient, user: AuthenticatedUser, sessionId: string) {
+  assertRole(user, 'MEMBER', 'TRAINER');
+  validId(sessionId);
+  const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM workout_sessions WHERE id = ${sessionId}::uuid FOR UPDATE`;
+  if (!rows.length) throw new HttpError(404, 'Workout not found');
+  const workout = await tx.workoutSession.findUniqueOrThrow({ where: { id: sessionId } });
+  if (workout.memberId !== user.id) throw new HttpError(403, 'Forbidden');
+  return workout;
 }
