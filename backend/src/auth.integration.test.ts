@@ -17,11 +17,12 @@ const ids: string[] = [];
 let passwordHash: string;
 async function account(role: Role = 'MEMBER', isActive = true) {
   const user = await prisma.user.create({ data: { email: `${randomUUID()}@login.test`, displayName: 'Login test', passwordHash, role, isActive } });
+  await prisma.authSession.create({ data: { id: user.id, userId: user.id, tokenHash: randomUUID(), expiresAt: new Date(Date.now() + 86400000) } });
   ids.push(user.id);
   return user;
 }
 function token(subject: string, options: jwt.SignOptions = {}, signingSecret = secret) {
-  return jwt.sign({}, signingSecret, { subject, algorithm: 'HS256', issuer: 'gymtracker', audience: 'gymtracker-api', expiresIn: 3600, ...options });
+  return jwt.sign({ sid: subject }, signingSecret, { subject, algorithm: 'HS256', issuer: 'gymtracker', audience: 'gymtracker-api', expiresIn: 3600, ...options });
 }
 const login = (email: string, suppliedPassword = password) => request(app).post('/api/auth/login').send({ email, password: suppliedPassword });
 const me = (accessToken: string) => request(app).get('/api/auth/me').set('Authorization', `Bearer ${accessToken}`);
@@ -76,6 +77,7 @@ describe('Login and protected API authentication', () => {
       token(user.id, { algorithm: 'HS384' }), token(user.id, { issuer: 'another-app' }),
       token(user.id, { audience: 'another-api' }), token('not-a-uuid'),
       jwt.sign({ sub: user.id, iss: 'gymtracker', aud: 'gymtracker-api' }, secret),
+      jwt.sign({}, secret, { subject: user.id, issuer: 'gymtracker', audience: 'gymtracker-api', expiresIn: 3600 }),
     ];
     for (const value of invalid) expect((await me(value)).status).toBe(401);
   });

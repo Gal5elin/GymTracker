@@ -259,3 +259,14 @@ textarea::placeholder { color: #999; }
 .registration-card .button { width: 100%; min-height: 44px; font-size: 13px; }
 .registration-card form > .field-error { margin-top: 16px; }
 .registration-demo { display: block; margin-top: 28px; text-align: center; text-decoration: underline; text-underline-offset: 4px; }
+
+.session-skeleton {
+  height: 1.25rem;
+  margin-block: 1.25rem;
+  border-radius: 0.4rem;
+  background: var(--border, #29313d);
+  animation: session-pulse 1.4s ease-in-out infinite alternate;
+}
+.session-skeleton.short { width: 60%; }
+@keyframes session-pulse { to { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .session-skeleton { animation: none; } }
