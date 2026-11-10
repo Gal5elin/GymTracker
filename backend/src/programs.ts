@@ -1,6 +1,7 @@
 import { Router, type NextFunction, type Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
+import { plannedExerciseInclude, programExercisesRouter } from './program-exercises.js';
 import { prisma } from './db.js';
 import { authenticatedUser, HttpError, requireProgramOwner } from './permissions.js';
 
@@ -19,9 +20,10 @@ const programChanges = z.strictObject({
 }).refine(value => Object.keys(value).length > 0, 'Provide at least one field');
 const newDay = z.strictObject(dayFields);
 const dayChanges = newDay.partial().refine(value => Object.keys(value).length > 0, 'Provide at least one field');
-const orderedDays = { days: { orderBy: { dayNumber: 'asc' as const } } };
+const orderedDays = { days: { orderBy: { dayNumber: 'asc' as const }, include: { exercises: { orderBy: { position: 'asc' as const }, include: plannedExerciseInclude } } } };
 
 export const programsRouter = Router();
+programsRouter.use('/:programId/days/:dayId/exercises', programExercisesRouter);
 programsRouter.get('/', async (_req, res) => {
   const user = authenticatedUser(res);
   const programs = await prisma.workoutProgram.findMany({
