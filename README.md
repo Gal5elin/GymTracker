@@ -217,7 +217,7 @@ Choose a program and a nonempty day to start. The frontend prevents duplicate cl
 selection after a failed start, offers refreshed choices for stale/denied selections and opens the
 current active workout after a conflict. Empty programs/days and missing legacy snapshots have
 explicit states. The saved view shows ordered exercises and target sets/reps/optional weight;
-set logging is connected in #26; completion has an API in #27 and its frontend flow follows in #28. The independent demo is unchanged.
+set logging (#26) and completion (#28) are connected to their APIs. The independent demo is unchanged.
 
 ## Performed-set recording
 
@@ -261,7 +261,7 @@ and workout state without overwriting an existing set; completed workouts disabl
 **Reload saved sets** recovers server data without discarding drafts for other unsaved rows.
 Navigation/reload restores recorded sets from the API; unsaved drafts are held only while the
 current screen is mounted. No browser storage is used for workout data. Shared set-row controls
-also serve the separate demo. Workout completion is available in the API (#27); its controls follow in #28.
+also serve the separate demo. Workout completion and notes are connected in #27–#28.
 
 ## Workout completion and notes
 
@@ -287,7 +287,19 @@ appears in `/api/workout-sessions/active`, but owner-only workout and saved-set 
 If a completion response is lost, clients should read the workout state before offering a retry;
 this endpoint deliberately rejects repeat completion rather than overwriting it.
 
-No schema migration is needed. The frontend Finish workout and notes flow is #28.
+No schema migration is needed. The frontend Finish workout and notes flow (#28) is connected
+in the active workout. An empty workout shows an error while preserving notes. During completion,
+set saves and repeat finish clicks are disabled. Failed requests retain notes; uncertain results
+trigger a read of the server state before a retry is allowed. If both completion and its recovery
+read fail, **Reload saved sets** must establish the current state before another finish attempt.
+Existing completed notes/time are never overwritten by the retry flow.
+
+After finishing, the screen shows the server's saved notes and completion time with set entry
+locked. It also reloads saved sets for the completed summary. The URL becomes `/#workout/:sessionId`
+so the owner can reload or return to the completed state without browser storage. These links use
+the same login/role guards and owner-only API as the active screen. **Choose another workout**
+returns to launch choices. The history list remains a separate feature (#29–#30). Unsaved notes
+remain in memory only until completion or leaving the screen; completion persists them in PostgreSQL.
 
 ## Server permissions
 

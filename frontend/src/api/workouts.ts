@@ -6,7 +6,8 @@ export interface WorkoutPlan {
   day: { id: string; dayNumber: number; title: string };
   exercises: { programExerciseId: string; exerciseId: string; position: number; name: string; muscleGroup: string; equipment: string; targetSets: number; targetReps: number; targetWeightKg: string | null }[];
 }
-export interface ActiveWorkout { id: string; status: 'IN_PROGRESS'; startedAt: string; planSnapshot: WorkoutPlan | null }
+export interface WorkoutRecord { id: string; status: 'IN_PROGRESS' | 'COMPLETED'; startedAt: string; finishedAt?: string | null; notes?: string | null; planSnapshot: WorkoutPlan | null }
+export interface ActiveWorkout extends WorkoutRecord { status: 'IN_PROGRESS' }
 export interface WorkoutOption extends ProgramDetail { source: 'OWNED' | 'ASSIGNED'; assignmentId: string | null }
 export function createWorkoutsApi(client: AuthClient) {
   async function send<T>(path: string, signal: AbortSignal, body?: object): Promise<T> {
@@ -25,6 +26,13 @@ export function createWorkoutsApi(client: AuthClient) {
     }
   }
   return {
+    get: async (id: string, signal: AbortSignal) => {
+      try { return await send<{ workout: WorkoutRecord }>(`/${id}`, signal); }
+      catch (error) {
+        if (error instanceof ApiError && error.status === 404) throw new ApiError(404, 'This workout is no longer available.');
+        throw error;
+      }
+    },
     active: (signal: AbortSignal) => send<{ workout: ActiveWorkout | null }>('/active', signal),
     options: (signal: AbortSignal) => send<{ programs: WorkoutOption[] }>('/options', signal),
     start: (program: WorkoutOption, dayId: string, signal: AbortSignal) => send<{ workout: ActiveWorkout }>('', signal, { programId: program.id, dayId, ...(program.assignmentId ? { assignmentId: program.assignmentId } : {}) }),

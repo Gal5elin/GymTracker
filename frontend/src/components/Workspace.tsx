@@ -17,7 +17,8 @@ const pages: WorkspacePage[] = [
   { id: 'assignments', label: 'Assignments', href: '#assignments', icon: 'layers', roles: ['TRAINER'], description: 'Assign your programs to members who accept your invitation. Program assignments are coming soon.' },
   { id: 'members', label: 'Member results', href: '#members', icon: 'trend', roles: ['TRAINER'], description: 'Review workouts and progress for members who accept your invitation. Member results are coming soon.' },
 ];
-export function isWorkspaceRoute(hash: string) { return pages.some(page => page.href === hash); }
+const workoutRoute = /^#workout\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function isWorkspaceRoute(hash: string) { return pages.some(page => page.href === hash) || workoutRoute.test(hash); }
 const roleLabels = { MEMBER: 'Member workspace', TRAINER: 'Trainer workspace', ADMIN: 'Administrator workspace' };
 
 export default function Workspace({ client, hash, onLogout }: { client: AuthClient; hash: string; onLogout: () => void }) {
@@ -36,15 +37,15 @@ export default function Workspace({ client, hash, onLogout }: { client: AuthClie
     return () => controller.abort();
   }, [client, hash, attempt]);
   const navigation = user ? pages.filter(page => page.roles.includes(user.role)) : [];
-  const page = pages.find(item => item.href === hash);
+  const page = pages.find(item => item.href === hash || (item.id === 'workout' && workoutRoute.test(hash)));
   const permitted = user && page?.roles.includes(user.role);
   return <AppShell navigation={navigation} activePage={page?.id ?? ''} displayName={user?.displayName ?? 'GymTracker'} roleLabel={user ? roleLabels[user.role] : 'Workspace'} onLogout={onLogout}>
     {user && error && <div className="notice" role="alert"><span>Could not refresh your account.</span><Button onClick={() => setAttempt(current => current + 1)}>Try again</Button></div>}
     {!user ? error ? <><PageHeading title="Unable to load account"/><p role="alert" className="field-error">{error}</p><Button onClick={() => setAttempt(current => current + 1)}>Try again</Button></> : <p role="status">Loading your account…</p>
       : !page || !permitted ? <><PageHeading title="Access denied"/><div className="panel"><EmptyState title="This page is not available for your role" action={<a className="button button-primary" href="#account">Return to overview</a>}>Choose a page from your workspace navigation.</EmptyState></div></>
-      : page.id === 'workout' ? <Workout client={client}/>
+      : page.id === 'workout' ? <Workout client={client} sessionId={workoutRoute.test(hash) ? hash.slice('#workout/'.length) : undefined}/>
       : page.id === 'programs' ? <Programs client={client}/>
-      : page.id === 'account' ? <><PageHeading title={`Welcome, ${user.displayName}`} description={`Signed in as ${user.displayName}.`}/><div className="panel"><EmptyState title={user.role === 'ADMIN' ? 'Administration' : 'Your training workspace'}>{user.role === 'ADMIN' ? 'Your account is reserved for user, role and exercise catalog administration. Management tools are planned for a later version.' : 'Your account is ready. Create a program in My programs, then start it in Workout. Record your sets in Workout. Completion and progress features are coming soon.'}</EmptyState></div></>
+      : page.id === 'account' ? <><PageHeading title={`Welcome, ${user.displayName}`} description={`Signed in as ${user.displayName}.`}/><div className="panel"><EmptyState title={user.role === 'ADMIN' ? 'Administration' : 'Your training workspace'}>{user.role === 'ADMIN' ? 'Your account is reserved for user, role and exercise catalog administration. Management tools are planned for a later version.' : 'Your account is ready. Create a program in My programs, then start it in Workout. Record your sets in Workout. Finish your workout when you are done. Progress features are coming soon.'}</EmptyState></div></>
       : <><PageHeading title={page.label}/><div className="panel"><EmptyState title="Coming soon">{page.description}</EmptyState></div></>}
   </AppShell>;
 }

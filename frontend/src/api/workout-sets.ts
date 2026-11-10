@@ -1,3 +1,4 @@
+import type { WorkoutRecord } from './workouts';
 import { ApiError, type AuthClient } from './auth';
 export interface PerformedSet { id: string; sessionId: string; exerciseId: string; exercisePosition: number; setNumber: number; reps: number; weightKg: string | null }
 export function createWorkoutSetsApi(client: AuthClient, workoutId: string) {
@@ -18,7 +19,7 @@ export function createWorkoutSetsApi(client: AuthClient, workoutId: string) {
   }
   return {
     list: (signal: AbortSignal) => send<{ sets: PerformedSet[] }>(true, signal),
-    state: (signal: AbortSignal) => send<{ workout: { id: string; status: 'IN_PROGRESS' | 'COMPLETED' } }>(false, signal),
+    state: (signal: AbortSignal) => send<{ workout: WorkoutRecord }>(false, signal),
     save: (data: { exerciseId: string; exercisePosition: number; setNumber: number; reps: number; weightKg: number | null }, signal: AbortSignal) => send<{ set: PerformedSet }>(true, signal, data),
   };
 }

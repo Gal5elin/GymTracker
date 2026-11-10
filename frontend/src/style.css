@@ -290,3 +290,6 @@ textarea::placeholder { color: #999; }
 .workout-started { margin-bottom: 24px; }
 
 .connected-exercise-list { list-style: none; padding: 0; }
+
+.saved-workout-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+.notes-panel h3 { margin-top: 24px; }
