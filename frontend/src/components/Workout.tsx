@@ -1,25 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, type AuthClient } from '../api/auth';
-import { createWorkoutsApi, type ActiveWorkout, type WorkoutOption } from '../api/workouts';
+import { createWorkoutsApi, type WorkoutRecord, type WorkoutOption } from '../api/workouts';
 import { Badge, Button, EmptyState, PageHeading } from './ui';
 import WorkoutSets from './WorkoutSets';
 import ProgramCard from './ProgramCard';
 
-function SavedPlan({ workout, client }: { workout: ActiveWorkout; client: AuthClient }) {
-  const [completed, setCompleted] = useState(false);
+function SavedPlan({ workout, client, onFinished, onChoose }: { workout: WorkoutRecord; client: AuthClient; onFinished: (record: WorkoutRecord) => void; onChoose: () => void }) {
+  const [completed, setCompleted] = useState(workout.status === 'COMPLETED');
   const plan = workout.planSnapshot?.version === 1 ? workout.planSnapshot : null;
   return <>
     <PageHeading eyebrow={completed ? 'Workout complete' : 'Workout in progress'} title={plan?.day.title ?? 'Active workout'} description={plan ? `${plan.program.name} · Day ${plan.day.dayNumber}` : undefined} action={<Badge dark>{completed ? 'Completed' : 'In progress'}</Badge>}/>
     <p className="muted small workout-started">Started {new Date(workout.startedAt).toLocaleString()}</p>
-    {!plan ? <div className="panel"><EmptyState title="Saved plan unavailable">The saved plan for this workout is unavailable. Its original exercises cannot be reconstructed from the current program.</EmptyState></div>
-      : <WorkoutSets key={workout.id} client={client} workout={workout} onCompletedChange={setCompleted}/>}
-    {!completed && <p className="notice">Workout completion is coming soon.</p>}
+    {!plan ? <div className="panel"><EmptyState title="Saved plan unavailable">The saved plan for this workout is unavailable. Its original exercises cannot be reconstructed from the current program.</EmptyState></div> : null}
+    <WorkoutSets key={workout.id} client={client} workout={workout} onCompletedChange={setCompleted} onFinished={onFinished}/>
+    {completed && <Button className="back-link" onClick={onChoose}>Choose another workout</Button>}
   </>;
 }
 
-export default function Workout({ client }: { client: AuthClient }) {
+export default function Workout({ client, sessionId }: { client: AuthClient; sessionId?: string }) {
   const api = useMemo(() => createWorkoutsApi(client), [client]);
-  const [workout, setWorkout] = useState<ActiveWorkout | null>(null);
+  const [workout, setWorkout] = useState<WorkoutRecord | null>(null);
   const [programs, setPrograms] = useState<WorkoutOption[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,16 +28,18 @@ export default function Workout({ client }: { client: AuthClient }) {
   const [loadError, setLoadError] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const skipRouteLoad = useRef<string | null>(null);
   const busy = useRef(false);
   const request = useRef<AbortController | null>(null);
   const heading = useRef<HTMLDivElement>(null);
   useEffect(() => { heading.current?.querySelector<HTMLElement>('h1')?.focus(); }, [workout?.id, selectedId, loading]);
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => {
+    if (sessionId && skipRouteLoad.current === sessionId) { skipRouteLoad.current = null; return; }
     const controller = new AbortController(); setLoading(true); setError(''); setLoadError(false); setConflict(false);
     (async () => {
       try {
-        const active = await api.active(controller.signal);
+        const active = sessionId ? await api.get(sessionId, controller.signal) : await api.active(controller.signal);
         if (controller.signal.aborted) return;
         if (!Object.hasOwn(active, 'workout')) throw new Error('Could not load your workout. Please try again.');
         setWorkout(active.workout);
@@ -50,7 +52,7 @@ export default function Workout({ client }: { client: AuthClient }) {
       finally { if (!controller.signal.aborted) setLoading(false); }
     })();
     return () => controller.abort();
-  }, [api, attempt]);
+  }, [api, attempt, sessionId]);
   async function start(program: WorkoutOption, dayId: string) {
     if (busy.current) return;
     busy.current = true; setPendingDay(dayId); setError(''); setConflict(false);
@@ -63,10 +65,25 @@ export default function Workout({ client }: { client: AuthClient }) {
       if (!controller.signal.aborted) { setError(failure instanceof Error ? failure.message : 'Please try again.'); setConflict(failure instanceof ApiError && failure.status === 409); }
     } finally { if (!controller.signal.aborted) { busy.current = false; setPendingDay(null); } }
   }
+  function finished(record: WorkoutRecord) {
+    setWorkout(record);
+    const destination = `#workout/${record.id}`;
+    if (window.location.hash !== destination) {
+      skipRouteLoad.current = record.id;
+      window.history.replaceState(null, '', destination);
+      window.dispatchEvent(new Event('hashchange'));
+    }
+  }
+  function chooseAnother() {
+    setSelectedId(null); setWorkout(null); skipRouteLoad.current = null;
+    if (window.location.hash !== '#workout') {
+      window.history.replaceState(null, '', '#workout'); window.dispatchEvent(new Event('hashchange'));
+    } else setAttempt(value => value + 1);
+  }
   const selected = programs.find(program => program.id === selectedId);
   return <div ref={heading}>
     {loading ? <><PageHeading title="Workout"/><div className="panel program-editor" aria-busy="true" aria-label="Loading workout"><div className="session-skeleton"/><div className="session-skeleton short"/></div></>
-      : workout && !loadError ? <SavedPlan key={workout.id} workout={workout} client={client}/>
+      : workout && !loadError ? <SavedPlan key={workout.id} workout={workout} client={client} onFinished={finished} onChoose={chooseAnother}/>
       : <>
         {selected && !loadError && <Button variant="ghost" className="back-link" disabled={!!pendingDay} onClick={() => { setSelectedId(null); setError(''); }}>← All workout programs</Button>}
         <PageHeading title="Workout" description={selected ? selected.name : 'Choose a program and training day to begin.'}/>
