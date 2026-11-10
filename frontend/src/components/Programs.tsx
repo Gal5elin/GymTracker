@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { AuthClient } from '../api/auth';
 import { createProgramsApi, type Program, type ProgramDay, type ProgramDetail } from '../api/programs';
+import ExercisePlanner from './ExercisePlanner';
 import ProgramCard from './ProgramCard';
 import { Badge, Button, EmptyState, Icon, PageHeading } from './ui';
 
@@ -53,6 +54,7 @@ export default function Programs({ client }: { client: AuthClient }) {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProgramDetail | null>(null);
+  const [exerciseDay, setExerciseDay] = useState<string | null>(null);
   const [editor, setEditor] = useState<'program' | 'day' | null>(null);
   const [editingDay, setEditingDay] = useState<ProgramDay | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,10 +83,14 @@ export default function Programs({ client }: { client: AuthClient }) {
   }
   function saveDay(value: Program | ProgramDay) {
     const day = value as ProgramDay;
-    setDetail(current => current ? { ...current, days: [...current.days.filter(item => item.id !== day.id), day].sort((a, b) => a.dayNumber - b.dayNumber) } : current);
+    setDetail(current => current ? { ...current, days: [...current.days.filter(item => item.id !== day.id), { ...current.days.find(item => item.id === day.id), ...day }].sort((a, b) => a.dayNumber - b.dayNumber) } : current);
     setEditor(null); setNotice('Day saved.');
   }
   function back() { setSelected(null); setEditor(null); setNotice(''); }
+  if (detail && exerciseDay) {
+    const day = detail.days.find(item => item.id === exerciseDay);
+    if (day) return <ExercisePlanner key={day.id} client={client} programId={detail.id} day={day} onBack={() => setExerciseDay(null)} onChange={exercises => setDetail(current => current ? { ...current, days: current.days.map(item => item.id === day.id ? { ...item, exercises } : item) } : current)}/>;
+  }
   return <>
     {selected && <Button variant="ghost" className="back-link" onClick={back}>← All programs</Button>}
     <div ref={heading} tabIndex={-1}><PageHeading title={detail?.name ?? 'My programs'} description={detail?.description ?? (selected ? undefined : 'Build your training plan, one day at a time.')} action={!loading && !error && !editor ? <Button variant="primary" onClick={() => { setEditor('program'); setNotice(''); }}>{selected ? 'Edit program' : 'Create program'}<Icon name="plus" size={16}/></Button> : undefined}/></div>
@@ -94,7 +100,7 @@ export default function Programs({ client }: { client: AuthClient }) {
       : editor ? <EditorForm key={`${selected}-${editor}-${editingDay?.id}`} api={api} program={detail} {...(editor === 'day' ? { day: editingDay, days: detail?.days } : {})} onSave={editor === 'day' ? saveDay : saveProgram} onCancel={() => setEditor(null)}/>
       : detail ? <>
         <div className="section-heading"><h2>Training days <span className="count">{detail.days.length}</span></h2><Button onClick={() => { setEditingDay(null); setEditor('day'); setNotice(''); }}>Add day<Icon name="plus" size={16}/></Button></div>
-        {detail.days.length ? <div className="day-grid">{detail.days.map(day => <article className="panel day-card" key={day.id}><Badge>Day {day.dayNumber}</Badge><h2>{day.title}</h2><Button onClick={() => { setEditingDay(day); setEditor('day'); setNotice(''); }} aria-label={`Edit day ${day.dayNumber}: ${day.title}`}>Edit day<Icon name="arrow" size={16}/></Button></article>)}</div>
+        {detail.days.length ? <div className="day-grid">{detail.days.map(day => <article className="panel day-card" key={day.id}><Badge>Day {day.dayNumber}</Badge><h2>{day.title}</h2><p className="muted">{day.exercises?.length ?? 0} planned {day.exercises?.length === 1 ? 'exercise' : 'exercises'}</p><Button aria-label={`Plan exercises for day ${day.dayNumber}: ${day.title}`} onClick={() => setExerciseDay(day.id)}>Plan exercises<Icon name="workout" size={16}/></Button><Button onClick={() => { setEditingDay(day); setEditor('day'); setNotice(''); }} aria-label={`Edit day ${day.dayNumber}: ${day.title}`}>Edit day<Icon name="arrow" size={16}/></Button></article>)}</div>
           : <div className="panel"><EmptyState title="No training days yet">Add your first day to organize this program.</EmptyState></div>}
       </> : programs.length ? <div className="program-grid">{programs.map(program => <ProgramCard key={program.id} name={program.name} description={program.description} onOpen={() => { setSelected(program.id); setNotice(''); }}/>)}</div>
         : <div className="panel"><EmptyState title="No programs yet">Create your first program to start planning your training.</EmptyState></div>}

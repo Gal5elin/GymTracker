@@ -127,7 +127,9 @@ Program/day validation errors return `{ error, fields }`. No schema migration is
 The authenticated program/day editor (#18) is available at `/#programs` for members and trainers.
 Create a program, open it, and add or edit its numbered days. The editor shows validation, duplicate-number
 and denied-edit feedback and retries failed loads/saves without discarding entered values. Exercise
-planning APIs are available in #19; their editor controls follow in #20. Day cards do not start workouts yet.
+planning APIs (#19) and their editor controls (#20) are available. Open **Plan exercises** on a
+day card to choose catalog exercises, enter sets/reps and optional weight, or edit/remove planned
+entries. **Up/Down** saves the new order immediately. Day cards do not start workouts yet.
 
 ## Exercise catalog and planned exercises
 
@@ -166,7 +168,9 @@ selections or stale/incomplete reorder lists return `400`. Missing records/paren
 `404`; non-owners and admins receive `403`, unauthenticated callers `401`. Other users' plans cannot
 be read or edited, even by a linked trainer. Removing an entry leaves other positions unchanged.
 
-No schema migration is needed. The UI for selecting exercises and editing targets/order is #20.
+No schema migration is needed. The connected exercise planner (#20) is available through
+**My programs → View program → Plan exercises**. It preserves entered targets after failed saves
+and while refreshing a stale list. Repeated catalog selections remain distinct planned entries.
 
 ## Server permissions
 
