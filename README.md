@@ -298,7 +298,7 @@ After finishing, the screen shows the server's saved notes and completion time w
 locked. It also reloads saved sets for the completed summary. The URL becomes `/#workout/:sessionId`
 so the owner can reload or return to the completed state without browser storage. These links use
 the same login/role guards and owner-only API as the active screen. **Choose another workout**
-returns to launch choices. History APIs are available in #29; the History tab follows in #30. Unsaved notes
+returns to launch choices. History APIs (#29) and the History tab (#30) are connected. Unsaved notes
 remain in memory only until completion or leaving the screen; completion persists them in PostgreSQL.
 
 ## Private workout history
@@ -339,7 +339,20 @@ link or ownership of a source program does not grant access to a recipient's pri
 separate trainer-read endpoints remain in their own issues. Existing assigned-workout history stays
 with the recipient after collaboration ends. Missing login returns `401`, non-owners/admins `403`,
 invalid IDs `400`, and missing or non-completed history details `404`. Responses are `no-store`.
-There are no history write endpoints and no schema migration. The connected History tab is #30.
+There are no history write endpoints and no schema migration. The History tab (#30) loads these
+private completed records at `/#history`; each row opens a guarded `/#history/:sessionId` detail.
+Rows show execution date, saved program/day labels, actual set count and duration where available.
+**Load more workouts** follows server cursors, keeps loaded rows on page failure, and offers retry.
+Returning from a detail keeps already loaded pages; **Refresh history** fetches the latest first page.
+Completed workouts also offer **View in history** after finishing.
+
+Details show only recorded exercise groups, actual sets/reps/weights, saved notes and completion
+time, with no editing controls. Repeated exercise occurrences remain separate by position; zero
+weight is shown as zero and null as **No weight recorded**. Unknown legacy names and durations are
+marked unavailable, while performed results remain visible. Empty history offers a workout launch
+link; denied/missing details offer feedback and a back link. List/detail failures support retry,
+and requests are cancelled on navigation. Detail links reload after authentication is restored.
+The independent demo shares the history-row layout and keeps its sample data separate.
 
 ## Server permissions
 
