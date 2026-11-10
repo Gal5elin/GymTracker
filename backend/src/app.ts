@@ -3,6 +3,7 @@ import cors from 'cors';
 import { HttpError, requireRoles } from './permissions.js';
 import { createAuthRouter, requireAuthentication } from './auth.js';
 import { exerciseCatalogRouter } from './program-exercises.js';
+import { progressRouter } from './progress.js';
 import { programsRouter } from './programs.js';
 import { workoutsRouter } from './workouts.js';
 import { registrationRouter } from './registration.js';
@@ -28,6 +29,7 @@ export function createApp(frontendOrigin: string, jwtSecret: string, secureCooki
   app.use(['/api/programs', '/api/assignments', '/api/workout-sessions', '/api/progress', '/api/trainer-links'],
     requireAuthentication(jwtSecret), requireRoles('MEMBER', 'TRAINER'));
   app.use('/api/programs', programsRouter);
+  app.use('/api/progress', progressRouter);
   app.use('/api/workout-sessions', workoutsRouter);
   app.use('/api/exercises', requireAuthentication(jwtSecret), exerciseCatalogRouter);
   app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
