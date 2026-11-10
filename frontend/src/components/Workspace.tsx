@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AuthClient, User } from '../api/auth';
+import Workout from './Workout';
 import Programs from './Programs';
 import AppShell, { type NavigationItem } from './AppShell';
 import { Button, EmptyState, PageHeading } from './ui';
@@ -9,7 +10,7 @@ const personal: User['role'][] = ['MEMBER', 'TRAINER'];
 const pages: WorkspacePage[] = [
   { id: 'account', label: 'Overview', href: '#account', icon: 'grid', roles: ['MEMBER', 'TRAINER', 'ADMIN'], description: '' },
   { id: 'programs', label: 'My programs', href: '#programs', icon: 'layers', roles: personal, description: 'Create and organize your training programs and numbered days.' },
-  { id: 'workout', label: 'Workout', href: '#workout', icon: 'workout', roles: personal, description: 'Start a workout from one of your programs here. Workout recording is coming soon.' },
+  { id: 'workout', label: 'Workout', href: '#workout', icon: 'workout', roles: personal, description: 'Start a workout or return to your active workout.' },
   { id: 'history', label: 'History', href: '#history', icon: 'history', roles: personal, description: 'Review your completed workouts here. Workout history is coming soon.' },
   { id: 'progress', label: 'Progress', href: '#progress', icon: 'trend', roles: personal, description: 'Follow your exercise progress here. Progress tracking is coming soon.' },
   { id: 'invitations', label: 'Invitations', href: '#invitations', icon: 'plus', roles: ['TRAINER'], description: 'Invite members to collaborate here. Trainer invitations are coming soon.' },
@@ -41,8 +42,9 @@ export default function Workspace({ client, hash, onLogout }: { client: AuthClie
     {user && error && <div className="notice" role="alert"><span>Could not refresh your account.</span><Button onClick={() => setAttempt(current => current + 1)}>Try again</Button></div>}
     {!user ? error ? <><PageHeading title="Unable to load account"/><p role="alert" className="field-error">{error}</p><Button onClick={() => setAttempt(current => current + 1)}>Try again</Button></> : <p role="status">Loading your account…</p>
       : !page || !permitted ? <><PageHeading title="Access denied"/><div className="panel"><EmptyState title="This page is not available for your role" action={<a className="button button-primary" href="#account">Return to overview</a>}>Choose a page from your workspace navigation.</EmptyState></div></>
+      : page.id === 'workout' ? <Workout client={client}/>
       : page.id === 'programs' ? <Programs client={client}/>
-      : page.id === 'account' ? <><PageHeading title={`Welcome, ${user.displayName}`} description={`Signed in as ${user.displayName}.`}/><div className="panel"><EmptyState title={user.role === 'ADMIN' ? 'Administration' : 'Your training workspace'}>{user.role === 'ADMIN' ? 'Your account is reserved for user, role and exercise catalog administration. Management tools are planned for a later version.' : 'Your account is ready. Create a program in My programs. Workout recording and progress features are coming soon.'}</EmptyState></div></>
+      : page.id === 'account' ? <><PageHeading title={`Welcome, ${user.displayName}`} description={`Signed in as ${user.displayName}.`}/><div className="panel"><EmptyState title={user.role === 'ADMIN' ? 'Administration' : 'Your training workspace'}>{user.role === 'ADMIN' ? 'Your account is reserved for user, role and exercise catalog administration. Management tools are planned for a later version.' : 'Your account is ready. Create a program in My programs, then start it in Workout. Set logging and progress features are coming soon.'}</EmptyState></div></>
       : <><PageHeading title={page.label}/><div className="panel"><EmptyState title="Coming soon">{page.description}</EmptyState></div></>}
   </AppShell>;
 }

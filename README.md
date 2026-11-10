@@ -129,7 +129,7 @@ Create a program, open it, and add or edit its numbered days. The editor shows v
 and denied-edit feedback and retries failed loads/saves without discarding entered values. Exercise
 planning APIs (#19) and their editor controls (#20) are available. Open **Plan exercises** on a
 day card to choose catalog exercises, enter sets/reps and optional weight, or edit/remove planned
-entries. **Up/Down** saves the new order immediately. Day cards do not start workouts yet.
+entries. **Up/Down** saves the new order immediately. Use the **Workout** tab to launch a day.
 
 ## Exercise catalog and planned exercises
 
@@ -204,8 +204,20 @@ allow starting or reading another user's workout through these owner-only endpoi
 Apply the snapshot migration with `npm run db:migrate -w backend` before starting the updated API.
 Legacy workouts retain `planSnapshot: null`; their historical plan cannot be reconstructed reliably.
 All new API-created workouts have a versioned snapshot. Future set-recording endpoints must validate
-exercises and positions against this snapshot, not the live program. The launch screen and planned
-exercise view are a separate frontend issue (#24); #23 does not add frontend workout controls.
+exercises and positions against this snapshot, not the live program.
+
+The launch screen (#24) is connected under `/#workout`. It first checks for the current active
+workout and displays its saved plan; navigation or reload reopens it from the server. If none is
+active, `GET /api/workout-sessions/options` supplies owned and assigned programs with ordered days
+and planned exercises. The read-only response includes `source` (`OWNED`/`ASSIGNED`) and an
+`assignmentId` for assigned programs, without exposing other members' assignments or granting plan
+editing rights. Historical assignments remain available after trainer collaboration ends.
+
+Choose a program and a nonempty day to start. The frontend prevents duplicate clicks, retains
+selection after a failed start, offers refreshed choices for stale/denied selections and opens the
+current active workout after a conflict. Empty programs/days and missing legacy snapshots have
+explicit states. The saved view shows ordered exercises and target sets/reps/optional weight;
+set logging and completion remain in subsequent issues. The independent demo is unchanged.
 
 ## Server permissions
 

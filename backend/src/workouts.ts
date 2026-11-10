@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { plannedExerciseInclude } from './program-exercises.js';
 import { prisma } from './db.js';
 import { authenticatedUser, HttpError, requireWorkoutOwner } from './permissions.js';
 
@@ -60,6 +61,25 @@ workoutsRouter.post('/', async (req, res) => {
     return { workout, created: true };
   });
   res.location(`/api/workout-sessions/${result.workout.id}`).status(result.created ? 201 : 200).json({ workout: result.workout });
+});
+// Read-only launch choices: assignments grant training access, never plan editing rights.
+workoutsRouter.get('/options', async (_req, res) => {
+  const memberId = authenticatedUser(res).id;
+  const available = await prisma.workoutProgram.findMany({
+    where: { OR: [{ ownerId: memberId }, { assignments: { some: { memberId } } }] },
+    orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+    include: {
+      assignments: { where: { memberId }, orderBy: [{ assignedAt: 'asc' }, { id: 'asc' }], take: 1 },
+      days: { orderBy: { dayNumber: 'asc' }, include: { exercises: { orderBy: { position: 'asc' }, include: plannedExerciseInclude } } },
+    },
+  });
+  const programs = available.map(program => ({
+    id: program.id, name: program.name, description: program.description,
+    source: program.ownerId === memberId ? 'OWNED' : 'ASSIGNED',
+    assignmentId: program.ownerId === memberId ? null : program.assignments[0].id,
+    days: program.days,
+  }));
+  res.json({ programs });
 });
 workoutsRouter.get('/active', async (_req, res) => {
   const workout = await prisma.workoutSession.findFirst({ where: { memberId: authenticatedUser(res).id, status: 'IN_PROGRESS' }, orderBy: [{ startedAt: 'desc' }, { id: 'asc' }] });

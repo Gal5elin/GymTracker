@@ -156,3 +156,21 @@ it('exposes only the actor’s active workout and enforces read/start role guard
   for (const action of [request(app).post('/api/workout-sessions').send({ programId: program.id, dayId: day.id }), request(app).get(`/api/workout-sessions/${workout.id}`), request(app).get('/api/workout-sessions/active')]) expect((await action).status).toBe(401);
   expect((await start(admin, program.id, day.id)).status).toBe(403);
 });
+
+it('lists only owned or assigned launch choices without granting edit access to assigned plans', async () => {
+  const own = await plan(); const assigned = await plan(trainer); const hidden = await plan(other);
+  const assignment = await prisma.programAssignment.create({ data: { programId: assigned.program.id, memberId: member, assignedById: trainer } });
+  await prisma.programAssignment.create({ data: { programId: assigned.program.id, memberId: other, assignedById: trainer } });
+  const response = await request(app).get('/api/workout-sessions/options').set('Authorization', bearer(member));
+  expect(response.status).toBe(200); expect(response.headers['cache-control']).toBe('no-store');
+  const choices = response.body.programs;
+  expect(choices).toContainEqual(expect.objectContaining({ id: own.program.id, source: 'OWNED', assignmentId: null }));
+  const choice = choices.find((item: { id: string }) => item.id === assigned.program.id);
+  expect(choice).toMatchObject({ source: 'ASSIGNED', assignmentId: assignment.id, days: [expect.objectContaining({ id: assigned.day.id })] });
+  expect(choice).not.toHaveProperty('assignments'); expect(choice).not.toHaveProperty('ownerId');
+  expect(choice.days[0].exercises.map((item: { position: number }) => item.position)).toEqual([2, 5]);
+  expect(choices.some((item: { id: string }) => item.id === hidden.program.id)).toBe(false);
+  expect((await request(app).patch(`/api/programs/${assigned.program.id}`).set('Authorization', bearer(member)).send({ name: 'No' })).status).toBe(403);
+  expect((await request(app).get('/api/workout-sessions/options')).status).toBe(401);
+  expect((await request(app).get('/api/workout-sessions/options').set('Authorization', bearer(admin))).status).toBe(403);
+});
