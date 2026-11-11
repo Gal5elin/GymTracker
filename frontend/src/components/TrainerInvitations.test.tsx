@@ -62,7 +62,7 @@ it('opens the form from the trainer workspace without sending on page load', asy
   const { fetch } = await open('TRAINER', true); expect(screen.getByRole('heading', { name: 'Invitations' })).toBeTruthy(); expect(screen.getByLabelText('Member email')).toBeTruthy();
   expect(fetch.mock.calls.filter(call => String(call[0]).endsWith('/api/trainer-links'))).toHaveLength(0);
 });
-it.each(['MEMBER', 'ADMIN'] as const)('denies direct access to the form for %s', async role => {
+it.each(['ADMIN'] as const)('denies direct access to the form for %s', async role => {
   const { fetch } = await open(role, true); expect(screen.getByRole('heading', { name: 'Access denied' })).toBeTruthy(); expect(screen.queryByLabelText('Member email')).toBeNull();
   expect(fetch.mock.calls.filter(call => String(call[0]).endsWith('/api/trainer-links'))).toHaveLength(0);
 });

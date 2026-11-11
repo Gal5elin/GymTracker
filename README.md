@@ -475,4 +475,22 @@ Creation and response share a transaction lock per trainer so accepting cannot r
 with creation of a second invitation. A conditional state update prevents later responses
 from overwriting the first decision. Accepted links satisfy the existing consent checks;
 rejected links grant no results or assignment access. Responses inherit the API's
-`no-store` policy. No schema migration is needed. The member invitation UI is issue #14.
+`no-store` policy. No schema migration is needed. Members can manage these invitations in the **Invitations** tab (#14).
+
+
+### Member invitation inbox (#14)
+
+The **Invitations** tab shows members their received invitations with the trainer's
+name, received date, and current status. Only pending invitations offer **Accept** and
+**Reject**. A successful response displays the saved status and removes those actions.
+Accepting explains the consent to results access and program assignments; rejecting
+provides no access. Trainers retain the invitation creation form, and admins cannot
+open either invitation screen.
+
+Use **Refresh invitations** to fetch changes made elsewhere. Loading and empty inbox
+states are explicit, and failed loads can be retried without discarding existing rows.
+Response actions are disabled while saving. If saving fails or conflicts, the inbox
+reloads authoritative statuses; if that read also fails, further responses remain disabled
+until a successful refresh. Requests are canceled when leaving the screen. The inbox
+uses authenticated API requests without storing invitations in browser storage.
+Revoking accepted collaborations remains a separate issue (#15–16).
