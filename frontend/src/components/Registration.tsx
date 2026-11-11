@@ -7,6 +7,7 @@ const fields: Field[] = ['displayName', 'email', 'password'];
 
 export default function Registration() {
   const [values, setValues] = useState({ displayName: '', email: '', password: '' });
+  const [registerAsTrainer, setRegisterAsTrainer] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
@@ -38,7 +39,7 @@ export default function Registration() {
       const origin = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
       const response = await fetch(`${origin}/api/auth/register`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...values, displayName: values.displayName.trim(), email: values.email.trim() }),
+        body: JSON.stringify({ ...values, registerAsTrainer, displayName: values.displayName.trim(), email: values.email.trim() }),
       });
       if (response.status === 201) {
         setValues({ displayName: '', email: '', password: '' });
@@ -71,7 +72,7 @@ export default function Registration() {
   return <main className="registration-page">
     <a className="brand" href="#register"><span className="brand-mark"><Icon name="workout" size={23}/></span>GymTracker<span className="brand-period">.</span></a>
     <section className="registration-card panel" aria-label="Registration">
-      {success ? <><h1 id="registration-title">Account created</h1><p role="status">Your member account is ready. Sign in to continue.</p></> : <>
+      {success ? <><h1 id="registration-title">Account created</h1><p role="status">Your {registerAsTrainer ? 'trainer' : 'member'} account is ready. Sign in to continue.</p></> : <>
         <PageHeading title="Create your account" description="Start planning and recording your workouts."/>
         <form ref={form} onSubmit={submit} noValidate aria-busy={pending}>
           <fieldset disabled={pending}>
@@ -81,6 +82,10 @@ export default function Registration() {
               {field === 'password' && <p id="password-help" className="muted small">Use 12–128 characters.</p>}
               {errors[field] && <p className="field-error" id={`${field}-error`} role="alert">{errors[field]}</p>}
             </div>)}
+            <div className="registration-field">
+              <label className="registration-checkbox"><input type="checkbox" checked={registerAsTrainer} onChange={event => setRegisterAsTrainer(event.target.checked)} aria-describedby="trainer-help"/>Register as a trainer</label>
+              <p id="trainer-help" className="muted small">Trainers can also invite members, assign programs and view results after members accept.</p>
+            </div>
             <Button type="submit" variant="primary" disabled={pending}>{pending ? 'Creating account…' : 'Create account'}<Icon name="arrow" size={16}/></Button>
           </fieldset>
           {error && <p className="field-error" role="alert">{error}</p>}

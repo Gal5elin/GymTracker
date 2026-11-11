@@ -50,6 +50,17 @@ describe('POST /api/auth/register', () => {
     expect(await verify(user.passwordHash, 'wrong password')).toBe(false);
   });
 
+  it.each([false, true])('creates the selected account role when registerAsTrainer is %s', async registerAsTrainer => {
+    const input = details();
+    const response = await register({ ...input, registerAsTrainer });
+    expect(response.status).toBe(201);
+    const role = registerAsTrainer ? 'TRAINER' : 'MEMBER';
+    expect(response.body.user.role).toBe(role);
+    const saved = await prisma.user.findUniqueOrThrow({ where: { email: input.email } });
+    expect(saved.role).toBe(role);
+    expect(await verify(saved.passwordHash, password)).toBe(true);
+  });
+
   it('rejects duplicate emails including case and surrounding whitespace', async () => {
     const input = details();
     expect((await register(input)).status).toBe(201);
@@ -71,6 +82,7 @@ describe('POST /api/auth/register', () => {
     { displayName: '   ' }, { email: 'invalid' }, { password: '' },
     { password: 'short' }, { password: 'x'.repeat(129) },
     { displayName: 'x'.repeat(101) }, { email: 123 }, { password: 123 },
+    { registerAsTrainer: 'true' }, { registerAsTrainer: 1 }, { registerAsTrainer: null },
     { displayName: null }, { role: 'ADMIN' }, { role: 'TRAINER' },
     { isActive: false }, { passwordHash: 'supplied-hash' }, { id: randomUUID() },
   ])('rejects invalid or server-owned input without persisting a user: %j', async (override) => {

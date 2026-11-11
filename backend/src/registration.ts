@@ -8,6 +8,7 @@ const registration = z.strictObject({
   displayName: z.string().trim().min(1).max(100),
   email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
   password: z.string().min(12).max(128),
+  registerAsTrainer: z.boolean().default(false),
 });
 
 export const registrationRouter = Router();
@@ -18,10 +19,10 @@ registrationRouter.post('/register', async (req, res, next) => {
     return;
   }
   try {
-    const { displayName, email, password } = input.data;
+    const { displayName, email, password, registerAsTrainer } = input.data;
     const passwordHash = await hash(password, { type: argon2id });
     const user = await prisma.user.create({
-      data: { displayName, email, passwordHash, role: 'MEMBER', isActive: true },
+      data: { displayName, email, passwordHash, role: registerAsTrainer ? 'TRAINER' : 'MEMBER', isActive: true },
       select: { id: true, displayName: true, email: true, role: true, isActive: true, createdAt: true },
     });
     res.status(201).json({ user });
