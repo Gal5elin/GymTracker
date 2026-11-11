@@ -40,28 +40,29 @@ trainerLinksRouter.get('/', requireRoles('MEMBER'), async (req, res) => {
   res.json({ invitations });
 });
 
-const responseInput = z.strictObject({ status: z.enum(['ACCEPTED', 'REJECTED']) });
+const responseInput = z.strictObject({ status: z.enum(['ACCEPTED', 'REJECTED', 'REVOKED']) });
 trainerLinksRouter.patch('/:invitationId', requireRoles('MEMBER'), async (req, res) => {
   const id = z.uuid().safeParse(req.params.invitationId);
   if (!id.success) throw new HttpError(400, 'Invalid invitation ID');
   const parsed = responseInput.safeParse(req.body);
-  if (!parsed.success) throw new HttpError(400, 'Choose ACCEPTED or REJECTED');
+  if (!parsed.success) throw new HttpError(400, 'Choose ACCEPTED, REJECTED or REVOKED');
   const memberId = authenticatedUser(res).id;
   const invitation = await prisma.$transaction(async tx => {
     const existing = await tx.trainerLink.findUnique({ where: { id: id.data } });
     if (!existing) throw new HttpError(404, 'Invitation not found');
     if (existing.memberId !== memberId) throw new HttpError(403, 'Only the invited member can respond');
-    // Share the creation lock: accepting and sending another invitation cannot race.
+    // Serialize all relationship changes with invitation creation for this trainer.
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${existing.trainerId}::uuid FOR UPDATE`;
     if (parsed.data.status === 'ACCEPTED') {
       const trainer = await tx.user.findUnique({ where: { id: existing.trainerId }, select: { role: true, isActive: true } });
       if (!trainer?.isActive || trainer.role !== 'TRAINER') throw new HttpError(409, 'This trainer is no longer available');
     }
     // Conditional update checks state after waiting for concurrent writes.
+    const requiredStatus = parsed.data.status === 'REVOKED' ? 'ACCEPTED' : 'PENDING';
     const changed = await tx.trainerLink.updateMany({
-      where: { id: existing.id, memberId, status: 'PENDING' }, data: { status: parsed.data.status },
+      where: { id: existing.id, memberId, status: requiredStatus }, data: { status: parsed.data.status },
     });
-    if (changed.count !== 1) throw new HttpError(409, 'Only pending invitations can be answered');
+    if (changed.count !== 1) throw new HttpError(409, parsed.data.status === 'REVOKED' ? 'Only accepted relationships can be revoked' : 'Only pending invitations can be answered');
     return tx.trainerLink.findUniqueOrThrow({ where: { id: existing.id }, select: invitationFields });
   });
   res.json({ invitation });
