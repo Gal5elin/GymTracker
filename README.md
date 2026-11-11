@@ -533,3 +533,29 @@ available. Saving disables repeated requests. A failure refreshes the saved rela
 status; if verification also fails, actions remain disabled until a successful refresh.
 Retrying an accepted relationship requires confirmation again. Leaving the screen cancels
 pending requests. No backend or schema changes are required for this control.
+
+### Trainer program assignments (#21)
+
+`POST /api/assignments` requires an active authenticated `TRAINER` and a strict body
+`{ "programId": "<uuid>", "memberId": "<uuid>" }`. Only the trainer's own program
+may be assigned, and the recipient must be an active `MEMBER` with an `ACCEPTED`
+relationship to that trainer. Missing authentication returns `401`, denied roles,
+foreign programs or unavailable/unrelated recipients `403`, invalid input `400`, and
+a missing program `404`. Caller-supplied assigning identities or timestamps are rejected.
+
+Success returns `201 { assignment: { id, programId, memberId, assignedById, assignedAt } }`.
+The assigning trainer and timestamp are set by the server. Repeating the same
+program/member/trainer assignment returns `200` with the original record and timestamp;
+concurrent retries are serialized. Different programs and accepted recipients may be
+assigned independently. Existing historical duplicate rows are not deleted.
+
+Assignment creation shares the trainer transaction lock used by relationship changes,
+and checks ownership/consent inside that transaction. If revocation commits first, the
+assignment is denied; if assignment commits first, it remains accessible to the member
+after revocation. Even a retry must pass current consent checks. Future assignment
+creation entry points must follow the same locking protocol.
+
+Assigned programs and their days appear in the member's existing **Workout** choices.
+Assignment grants the ability to train from a program, not edit it. Existing assignments
+and completed workout data survive relationship revocation. No schema migration is
+needed. The trainer assignment screen is issue #22.
