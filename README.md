@@ -52,7 +52,7 @@ You can run apps independently with `npm run dev -w backend` and `npm run dev -w
 `POST /api/auth/register` accepts `{ "displayName": "Your name", "email": "you@example.com", "password": "a-long-password" }`.
 Names are trimmed (1–100 characters); email is trimmed, lowercased and validated (maximum 254 characters).
 Passwords must contain 12–128 characters and are hashed with Argon2id without trimming.
-Registration always creates an active `MEMBER`; unknown fields, including client-supplied roles, are rejected.
+Registration creates an active `MEMBER` by default, or an active `TRAINER` when `registerAsTrainer` is true; unknown fields, including client-supplied roles, are rejected.
 Success returns `201` with `{ user: { id, displayName, email, role, isActive, createdAt } }` and no credentials.
 Invalid input returns `400`; a duplicate normalized email returns `409`.
 
@@ -395,7 +395,7 @@ The signed-in **Progress** tab uses these endpoints for its exercise selector an
 ownership, workout ownership, private results access, accepted trainer links and trainer assignments.
 Unauthorized actions return JSON `403`; missing authentication returns `401`. Trainers retain personal
 member functions. Administrators have no override for private results, workout recording or personal
-programs/assignments. Registration still rejects supplied roles and creates only active members.
+programs/assignments. Registration rejects supplied roles; its optional boolean `registerAsTrainer` creates an active trainer when true, otherwise an active member.
 
 Feature namespaces (`/api/programs`, `/api/assignments`, `/api/workout-sessions`, `/api/progress`,
 `/api/trainer-links`) require an authenticated member or trainer. `/api/exercises` requires authentication.
@@ -627,3 +627,8 @@ A forbidden result request removes the entire results view and explains that acc
 is no longer available. Switching members cancels pending reads and discards previous
 results. Empty choices, empty results and request failures have explicit states and
 retry controls. Members and admins cannot open these routes.
+
+Sign-up includes an optional **Register as a trainer** checkbox. It defaults to unchecked.
+`POST /api/auth/register` accepts `registerAsTrainer: true` for a trainer account;
+omitting it or sending `false` creates a member. Arbitrary `role` and `isActive` inputs
+remain rejected. No database migration is required.

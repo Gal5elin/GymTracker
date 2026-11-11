@@ -39,11 +39,20 @@ describe('Registration', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith('http://localhost:3000/api/auth/register', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ displayName: 'Test member', email: 'member@example.com', password: 'A-long-password-123!' }),
+      body: JSON.stringify({ displayName: 'Test member', email: 'member@example.com', password: 'A-long-password-123!', registerAsTrainer: false }),
     });
     resolve({ status: 201 } as Response);
     expect(await screen.findByRole('heading', { name: 'Account created' })).toBeTruthy();
     expect(screen.queryByLabelText('Password')).toBeNull();
+  });
+  it('allows trainer signup and confirms the selected account type', async () => {
+    const fetch = vi.fn().mockResolvedValue({ status: 201 }); vi.stubGlobal('fetch', fetch);
+    render(<Registration/>); fill();
+    const checkbox = screen.getByRole('checkbox', { name: 'Register as a trainer' });
+    expect((checkbox as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(checkbox); submit();
+    expect(await screen.findByText('Your trainer account is ready. Sign in to continue.')).toBeTruthy();
+    expect(JSON.parse(fetch.mock.calls[0][1].body).registerAsTrainer).toBe(true);
   });
   it('shows duplicate-email feedback and lets the user retry', async () => {
     const fetch = vi.fn().mockResolvedValueOnce({ status: 409 }).mockResolvedValueOnce({ status: 201 }); vi.stubGlobal('fetch', fetch);

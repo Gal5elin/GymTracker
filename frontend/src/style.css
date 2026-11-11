@@ -319,3 +319,6 @@ textarea::placeholder { color: #999; }
 .assigned-program ol { padding-left: 24px; margin: 16px 0; }
 .assigned-program li { margin: 12px 0; }
 .assigned-program summary { cursor: pointer; }
+
+.registration-checkbox { display: flex; align-items: center; gap: 0.6rem; }
+.registration-checkbox input[type="checkbox"] { width: auto; min-height: auto; margin: 0; padding: 0; accent-color: #171717; }
