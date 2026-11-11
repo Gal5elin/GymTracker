@@ -431,3 +431,25 @@ All use `SEED_PASSWORD` from `backend/.env` (example: `GymTracker-dev-123!`). Pa
 - `docs/`: scope, user stories, architecture and data model.
 
 Unique keys, foreign keys and numeric checks are enforced in PostgreSQL. Role/ownership permissions, accepted trainer links, assignment consistency and workout completion rules require service logic in the feature issues. Historical references use restrictive deletion to preserve workout records.
+
+
+### Trainer invitation creation (#11)
+
+`POST /api/trainer-links` requires an active authenticated `TRAINER`. Send
+`{ "email": "member@example.com" }` to invite an existing active `MEMBER` account.
+Email is trimmed and lowercased. Trainer identity comes from authentication; unknown
+fields (including IDs and status) are rejected. Invalid input or an unavailable/non-member
+target returns `400`; missing authentication returns `401`, and other roles return `403`.
+
+Success returns `201` with `{ invitation: { id, trainerId, memberId, status, createdAt } }`,
+where status is always `PENDING`. A pending invitation or an already accepted relationship
+returns `409`. Rejected/revoked history remains stored and permits a new invitation;
+different trainers may invite the same member. A transaction serializes creation per trainer,
+and a partial unique index guarantees one pending invitation per pair even under concurrent writes.
+Pending invitations grant no member-results or assignment permissions.
+
+Apply `npm run db:migrate -w backend` before running the updated API. The partial unique
+index is maintained in migration SQL because Prisma does not represent filtered indexes.
+If existing data contains duplicate pending pairs, resolve those records before migration;
+the migration intentionally does not delete invitation history.
+The invitation form and member response/revocation flows are separate issues.
