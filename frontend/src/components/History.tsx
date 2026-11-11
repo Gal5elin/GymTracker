@@ -18,7 +18,7 @@ function CompletedDetail({ workout }: { workout: HistoryDetail }) {
     <section className="panel notes-panel"><h2>Session notes</h2><p className="saved-notes">{workout.notes || 'No notes added.'}</p>{workout.finishedAt && <p>Finished <time dateTime={workout.finishedAt}>{new Date(workout.finishedAt).toLocaleString()}</time></p>}</section>
   </>;
 }
-export default function History({ client, sessionId }: { client: AuthClient; sessionId?: string }) {
+export default function History({ client, sessionId, routeBase = '#history', readOnly = false }: { client: AuthClient; sessionId?: string; routeBase?: string; readOnly?: boolean }) {
   const api = useMemo(() => createHistoryApi(client), [client]);
   const [rows, setRows] = useState<HistorySummary[]>([]), [cursor, setCursor] = useState<string | null>(null);
   const [detail, setDetail] = useState<HistoryDetail | null>(null);
@@ -30,7 +30,7 @@ export default function History({ client, sessionId }: { client: AuthClient; ses
   useEffect(() => { heading.current?.querySelector<HTMLElement>('h1')?.focus(); }, [sessionId, loading]);
   useEffect(() => {
     const controller = new AbortController(); pageRequest.current?.abort(); setMore(false); setError(''); setPageError(''); setDetail(null);
-    if (!sessionId && listReady.current) { setLoading(false); return () => controller.abort(); }
+    if (!readOnly && !sessionId && listReady.current) { setLoading(false); return () => controller.abort(); }
     setLoading(true);
     (async () => {
       try {
@@ -40,7 +40,7 @@ export default function History({ client, sessionId }: { client: AuthClient; ses
       finally { if (!controller.signal.aborted) setLoading(false); }
     })();
     return () => { controller.abort(); pageRequest.current?.abort(); };
-  }, [api, sessionId, attempt]);
+  }, [api, sessionId, attempt, readOnly]);
   async function loadMore() {
     if (pageBusy.current || !cursor) return;
     pageBusy.current = true; setMore(true); setPageError('');
@@ -52,13 +52,13 @@ export default function History({ client, sessionId }: { client: AuthClient; ses
     finally { pageBusy.current = false; if (!controller.signal.aborted) setMore(false); }
   }
   return <div ref={heading}>
-    {sessionId && <a href="#history" className="button button-ghost back-link">← Back to history</a>}
+    {sessionId && <a href={routeBase} className="button button-ghost back-link">← Back to history</a>}
     {sessionId && detail?.id === sessionId && !loading && !error ? <CompletedDetail workout={detail}/> : <>
-      <PageHeading title="History" description={sessionId ? 'Your saved workout results.' : 'Review your completed workouts.'} action={!sessionId && <a href="#workout" className="button button-primary">Start workout</a>}/>
+      <PageHeading title="History" description={readOnly ? 'Completed workouts and saved results. Read-only access.' : sessionId ? 'Your saved workout results.' : 'Review your completed workouts.'} action={!readOnly && !sessionId && <a href="#workout" className="button button-primary">Start workout</a>}/>
       {loading ? <div className="panel program-editor" aria-busy="true" aria-label="Loading history"><div className="session-skeleton"/><div className="session-skeleton short"/></div>
         : error ? <div className="panel program-editor"><p role="alert" className="field-error">{error}</p><Button onClick={() => setAttempt(value => value + 1)}>Try again</Button></div>
         : !sessionId && <>
-          {rows.length ? <HistoryRows rows={rows.map(row => ({ ...row, title: row.day?.title ?? 'Workout', programName: row.program?.name ?? 'Saved program unavailable', href: `#history/${row.id}` }))}/> : <div className="panel"><EmptyState title="No completed workouts" action={<a href="#workout" className="button button-primary">Choose a workout</a>}>Your workouts will appear here after you finish them.</EmptyState></div>}
+          {rows.length ? <HistoryRows rows={rows.map(row => ({ ...row, title: row.day?.title ?? 'Workout', programName: row.program?.name ?? 'Saved program unavailable', href: `${routeBase}/${row.id}` }))}/> : <div className="panel"><EmptyState title="No completed workouts" action={!readOnly && <a href="#workout" className="button button-primary">Choose a workout</a>}>Completed workouts will appear here after they are finished.</EmptyState></div>}
           {pageError && <p className="field-error" role="alert">{pageError}</p>}
           {cursor && <Button className="history-more" disabled={more} onClick={() => { void loadMore(); }}>{more ? 'Loading more…' : pageError ? 'Retry loading more' : 'Load more workouts'}</Button>}
           {rows.length > 0 && <Button variant="ghost" disabled={more} onClick={() => { listReady.current = false; setAttempt(value => value + 1); }}>Refresh history</Button>}

@@ -4,7 +4,7 @@ import { createProgressApi, type ExerciseProgress, type ProgressExercise } from 
 import ProgressChart from './ProgressChart';
 import { Button, EmptyState, PageHeading } from './ui';
 
-export default function PersonalProgress({ client }: { client: AuthClient }) {
+export default function PersonalProgress({ client, historyBase = '#history', readOnly = false }: { client: AuthClient; historyBase?: string; readOnly?: boolean }) {
   const api = useMemo(() => createProgressApi(client), [client]);
   const [choices, setChoices] = useState<ProgressExercise[] | null>(null);
   const [exerciseId, setExerciseId] = useState('');
@@ -30,7 +30,7 @@ export default function PersonalProgress({ client }: { client: AuthClient }) {
   }, [api, exerciseId, attempt]);
   const current = result?.exercise.id === exerciseId ? result : null;
   const points = current?.points.map(point => ({ id: point.workoutId, label: new Date(point.startedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }), date: new Date(point.startedAt).toLocaleString('en-GB'), weight: Number(point.maxWeightKg) })) ?? [];
-  return <><PageHeading title="Your progress"/><section className="panel progress-panel"><div className="section-heading"><div><h2>Weight over time</h2><p className="muted small">Maximum recorded weight per completed workout</p></div>{choices && choices.length > 0 && <label className="select-field">Exercise<select value={exerciseId} onChange={event => { setExerciseId(event.target.value); setError(''); }}>
+  return <><PageHeading title={readOnly ? 'Member progress' : 'Your progress'}/><section className="panel progress-panel"><div className="section-heading"><div><h2>Weight over time</h2><p className="muted small">Maximum recorded weight per completed workout</p></div>{choices && choices.length > 0 && <label className="select-field">Exercise<select value={exerciseId} onChange={event => { setExerciseId(event.target.value); setError(''); }}>
     {choices.map(exercise => <option key={exercise.id} value={exercise.id}>{exercise.name}{exercise.isActive ? '' : ' (inactive)'}</option>)}
   </select></label>}</div>
     {choicesError ? <><p role="alert" className="field-error">{choicesError}</p><Button onClick={() => setChoicesAttempt(value => value + 1)}>Retry loading exercises</Button></>
@@ -38,7 +38,7 @@ export default function PersonalProgress({ client }: { client: AuthClient }) {
       : !choices.length ? <EmptyState title="No exercises available">Exercises will appear here when available in the catalog or your completed workouts.</EmptyState>
       : error ? <><p role="alert" className="field-error">{error}</p><Button onClick={() => { setError(''); setAttempt(value => value + 1); }}>Retry loading progress</Button></>
       : !current ? <p role="status">Loading progress…</p>
-      : !points.length ? <EmptyState title="No progress data">Record a weight for this exercise in a completed workout to see it here.</EmptyState>
-      : <><ProgressChart points={points} exerciseName={current.exercise.name}/><details><summary>View workout values</summary><table><caption>Maximum weights for {current.exercise.name}</caption><thead><tr><th scope="col">Workout date</th><th scope="col">Maximum weight (kg)</th></tr></thead><tbody>{current.points.map(point => <tr key={point.workoutId}><td><a href={`#history/${point.workoutId}`}>{new Date(point.startedAt).toLocaleString('en-GB')}</a></td><td>{point.maxWeightKg}</td></tr>)}</tbody></table></details></>}
+      : !points.length ? <EmptyState title="No progress data">{readOnly ? 'No recorded weights for this exercise in completed workouts.' : 'Record a weight for this exercise in a completed workout to see it here.'}</EmptyState>
+      : <><ProgressChart points={points} exerciseName={current.exercise.name}/><details><summary>View workout values</summary><table><caption>Maximum weights for {current.exercise.name}</caption><thead><tr><th scope="col">Workout date</th><th scope="col">Maximum weight (kg)</th></tr></thead><tbody>{current.points.map(point => <tr key={point.workoutId}><td><a href={`${historyBase}/${point.workoutId}`}>{new Date(point.startedAt).toLocaleString('en-GB')}</a></td><td>{point.maxWeightKg}</td></tr>)}</tbody></table></details></>}
   </section></>;
 }

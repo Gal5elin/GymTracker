@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import type { AuthClient, User } from '../api/auth';
 import History from './History';
+const MemberResults = lazy(() => import('./MemberResults'));
 const PersonalProgress = lazy(() => import('./PersonalProgress'));
 import Workout from './Workout';
 import Programs from './Programs';
@@ -21,11 +22,12 @@ const pages: WorkspacePage[] = [
   { id: 'progress', label: 'Progress', href: '#progress', icon: 'trend', roles: personal, description: 'Follow your maximum recorded weights over time.' },
   { id: 'invitations', label: 'Invitations', href: '#invitations', icon: 'plus', roles: personal, description: 'Invite an existing member to collaborate on their training.' },
   { id: 'assignments', label: 'Assignments', href: '#assignments', icon: 'layers', roles: personal, description: 'Assign your programs to members who accept your invitation.' },
-  { id: 'members', label: 'Member results', href: '#members', icon: 'trend', roles: ['TRAINER'], description: 'Review workouts and progress for members who accept your invitation. Member results are coming soon.' },
+  { id: 'members', label: 'Member results', href: '#members', icon: 'trend', roles: ['TRAINER'], description: 'Review workouts and progress for members who accept your invitation.' },
 ];
 const workoutRoute = /^#workout\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const historyRoute = /^#history\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export function isWorkspaceRoute(hash: string) { return pages.some(page => page.href === hash) || workoutRoute.test(hash) || historyRoute.test(hash); }
+const memberRoute = /^#members\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(?:progress|history(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?)$/i;
+export function isWorkspaceRoute(hash: string) { return pages.some(page => page.href === hash) || workoutRoute.test(hash) || historyRoute.test(hash) || memberRoute.test(hash); }
 const roleLabels = { MEMBER: 'Member workspace', TRAINER: 'Trainer workspace', ADMIN: 'Administrator workspace' };
 
 export default function Workspace({ client, hash, onLogout }: { client: AuthClient; hash: string; onLogout: () => void }) {
@@ -44,12 +46,13 @@ export default function Workspace({ client, hash, onLogout }: { client: AuthClie
     return () => controller.abort();
   }, [client, hash, attempt]);
   const navigation = user ? pages.filter(page => page.roles.includes(user.role)).map(page => user.role === 'MEMBER' && page.id === 'assignments' ? { ...page, label: 'Assigned programs' } : page) : [];
-  const page = pages.find(item => item.href === hash || (item.id === 'workout' && workoutRoute.test(hash)) || (item.id === 'history' && historyRoute.test(hash)));
+  const page = pages.find(item => item.href === hash || (item.id === 'workout' && workoutRoute.test(hash)) || (item.id === 'history' && historyRoute.test(hash)) || (item.id === 'members' && memberRoute.test(hash)));
   const permitted = user && page?.roles.includes(user.role);
   return <AppShell navigation={navigation} activePage={page?.id ?? ''} displayName={user?.displayName ?? 'GymTracker'} roleLabel={user ? roleLabels[user.role] : 'Workspace'} onLogout={onLogout}>
     {user && error && <div className="notice" role="alert"><span>Could not refresh your account.</span><Button onClick={() => setAttempt(current => current + 1)}>Try again</Button></div>}
     {!user ? error ? <><PageHeading title="Unable to load account"/><p role="alert" className="field-error">{error}</p><Button onClick={() => setAttempt(current => current + 1)}>Try again</Button></> : <p role="status">Loading your account…</p>
       : !page || !permitted ? <><PageHeading title="Access denied"/><div className="panel"><EmptyState title="This page is not available for your role" action={<a className="button button-primary" href="#account">Return to overview</a>}>Choose a page from your workspace navigation.</EmptyState></div></>
+      : page.id === 'members' ? <Suspense fallback={<p role="status">Loading member results…</p>}><MemberResults client={client} hash={hash}/></Suspense>
       : page.id === 'progress' ? <Suspense fallback={<p role="status">Loading progress…</p>}><PersonalProgress client={client}/></Suspense>
       : page.id === 'history' ? <History client={client} sessionId={historyRoute.test(hash) ? hash.slice('#history/'.length) : undefined}/>
       : page.id === 'workout' ? <Workout client={client} sessionId={workoutRoute.test(hash) ? hash.slice('#workout/'.length) : undefined}/>
