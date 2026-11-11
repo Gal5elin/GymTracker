@@ -463,7 +463,7 @@ including each link's `id`, `trainerId`, `memberId`, `status`, `createdAt`, and
 `trainer: { id, displayName }`. All statuses remain visible; no invitations returns an
 empty array. Query parameters are rejected (`400`); recipient identity comes from authentication.
 
-`PATCH /api/trainer-links/:invitationId` accepts only `{ "status": "ACCEPTED" }` or
+`PATCH /api/trainer-links/:invitationId` accepts `{ "status": "ACCEPTED" }` or
 `{ "status": "REJECTED" }`. Only the invited member may respond, and only while the
 invitation is pending. Success returns `200 { invitation }` with the same fields as the
 list. Invalid IDs/bodies return `400`, missing records `404`, another recipient `403`,
@@ -493,4 +493,27 @@ Response actions are disabled while saving. If saving fails or conflicts, the in
 reloads authoritative statuses; if that read also fails, further responses remain disabled
 until a successful refresh. Requests are canceled when leaving the screen. The inbox
 uses authenticated API requests without storing invitations in browser storage.
-Revoking accepted collaborations remains a separate issue (#15–16).
+Revocation is supported by the API (#15); its frontend control is issue #16.
+
+
+### Trainer relationship revocation (#15)
+
+An active linked `MEMBER` can send `PATCH /api/trainer-links/:invitationId` with
+`{ "status": "REVOKED" }` to revoke an accepted relationship. Success returns
+`200 { invitation }` with status `REVOKED`, also visible in the member's invitation
+list. Only `ACCEPTED → REVOKED` is allowed; pending, rejected, already revoked,
+and repeated revocations return `409`. Invalid IDs or bodies return `400`, missing
+links `404`, other members/trainers/admins `403`, and missing/inactive sessions `401`.
+The member may revoke even if the trainer has become inactive.
+
+The conditional update and shared trainer transaction lock prevent competing requests
+from overwriting the saved decision. Consent checks read current accepted links on each
+request: after revocation commits, the trainer cannot access the member's results or
+assign new programs. Future trainer result/assignment endpoints must use these checks.
+Other accepted trainer relationships remain independent. A new invitation may be sent
+after revocation and requires fresh acceptance to restore consent.
+
+Revocation changes only the relationship status. Existing assignments, workout snapshots,
+performed sets, notes, and completed history remain intact. Members retain their own
+history/progress and may continue starting workouts from previously assigned programs.
+No schema migration is needed. The confirmation and revoke control are issue #16.
