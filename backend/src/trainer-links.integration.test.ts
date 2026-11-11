@@ -75,3 +75,71 @@ it('pending invitations grant no results or assignment access', async () => {
   try { await expect(requireTrainerAssignment(actor, program.id, member)).rejects.toMatchObject({ status: 403 }); }
   finally { await prisma.workoutProgram.delete({ where: { id: program.id } }); }
 });
+
+const list = (actor = member) => request(app).get('/api/trainer-links').set('Authorization', bearer(actor));
+const respond = (id: string, status = 'ACCEPTED', actor = member) => request(app).patch(`/api/trainer-links/${id}`).set('Authorization', bearer(actor)).send({ status });
+async function pending() { const response = await invite(); expect(response.status).toBe(201); return response.body.invitation.id as string; }
+it('lists only the recipient invitations, including trainer display name and current status', async () => {
+  const id = await pending(); const other = await account('MEMBER');
+  await prisma.trainerLink.create({ data: { trainerId: trainer, memberId: other.id } });
+  const old = await prisma.trainerLink.create({ data: { trainerId: otherTrainer, memberId: member, status: 'REJECTED', createdAt: new Date('2020-01-01') } });
+  const response = await list(); expect(response.status).toBe(200); expect(response.body.invitations.map((i: { id: string }) => i.id)).toEqual([id, old.id]);
+  expect(response.body.invitations[0]).toMatchObject({ id, memberId: member, status: 'PENDING', trainer: { id: trainer, displayName: 'TRAINER' } });
+  expect(response.headers['cache-control']).toBe('no-store');
+  expect(JSON.stringify(response.body)).not.toMatch(/passwordHash|tokenHash|email/);
+  expect((await list(other.id)).body.invitations).toHaveLength(1);
+});
+it('returns an empty list and rejects recipient selection query parameters', async () => {
+  expect((await list()).body).toEqual({ invitations: [] });
+  expect((await request(app).get(`/api/trainer-links?memberId=${member}`).set('Authorization', bearer(member))).status).toBe(400);
+});
+it.each(['ACCEPTED', 'REJECTED'])('lets the recipient persist %s and denies subsequent responses', async status => {
+  const id = await pending(); const response = await respond(id, status);
+  expect(response.status).toBe(200); expect(response.body.invitation).toMatchObject({ id, status, trainer: { id: trainer } });
+  expect((await prisma.trainerLink.findUniqueOrThrow({ where: { id } })).status).toBe(status);
+  expect((await list()).body.invitations[0].status).toBe(status);
+  expect((await respond(id, status === 'ACCEPTED' ? 'REJECTED' : 'ACCEPTED')).status).toBe(409);
+  expect((await respond(id, status)).status).toBe(409);
+  expect((await prisma.trainerLink.findUniqueOrThrow({ where: { id } })).status).toBe(status);
+});
+it('allows exactly one winner for concurrent opposing responses', async () => {
+  const id = await pending(); const responses = await Promise.all([respond(id, 'ACCEPTED'), respond(id, 'REJECTED')]);
+  expect(responses.map(r => r.status).sort()).toEqual([200, 409]);
+  const winner = responses.find(r => r.status === 200)!;
+  expect((await prisma.trainerLink.findUniqueOrThrow({ where: { id } })).status).toBe(winner.body.invitation.status);
+});
+it('serializes acceptance with invitation creation so a connected pair has no extra pending invite', async () => {
+  const id = await pending(); const responses = await Promise.all([respond(id), invite()]);
+  expect(responses.map(r => r.status)).toEqual([200, 409]);
+  expect(await prisma.trainerLink.count({ where: { trainerId: trainer, memberId: member } })).toBe(1);
+});
+it('denies other members, trainers, admins, inactive users and unauthenticated responses', async () => {
+  const id = await pending(); const other = await account('MEMBER');
+  expect((await respond(id, 'ACCEPTED', other.id)).status).toBe(403);
+  for (const actor of [trainer, otherTrainer, admin]) { expect((await respond(id, 'ACCEPTED', actor)).status).toBe(403); expect((await list(actor)).status).toBe(403); }
+  expect((await respond(id, 'ACCEPTED', inactive)).status).toBe(401);
+  expect((await request(app).patch(`/api/trainer-links/${id}`).send({ status: 'ACCEPTED' })).status).toBe(401);
+  expect((await request(app).get('/api/trainer-links')).status).toBe(401);
+  expect((await prisma.trainerLink.findUniqueOrThrow({ where: { id } })).status).toBe('PENDING');
+});
+it('rejects invalid IDs, missing records, forged fields and unsupported states', async () => {
+  const id = await pending(); expect((await respond('bad')).status).toBe(400); expect((await respond(randomUUID())).status).toBe(404);
+  for (const body of [{}, { status: 'PENDING' }, { status: 'REVOKED' }, { status: 'accepted' }, { status: null }, { status: 'ACCEPTED', memberId: member }, { status: 'ACCEPTED', trainerId: otherTrainer }]) {
+    expect((await request(app).patch(`/api/trainer-links/${id}`).set('Authorization', bearer(member)).send(body)).status).toBe(400);
+  }
+  expect((await prisma.trainerLink.findUniqueOrThrow({ where: { id } })).status).toBe('PENDING');
+});
+it('does not answer a revoked link or accept an unavailable trainer', async () => {
+  const id = await pending(); await prisma.trainerLink.update({ where: { id }, data: { status: 'REVOKED' } }); expect((await respond(id)).status).toBe(409);
+  const nextId = await pending(); await prisma.user.update({ where: { id: trainer }, data: { isActive: false } });
+  try { expect((await respond(nextId)).status).toBe(409); expect((await respond(nextId, 'REJECTED')).status).toBe(200); }
+  finally { await prisma.user.update({ where: { id: trainer }, data: { isActive: true } }); }
+});
+it.each(['ACCEPTED', 'REJECTED'])('grants consent permissions only after acceptance, decision %s', async status => {
+  const id = await pending(); await respond(id, status); const actor = { id: trainer, role: 'TRAINER' as const, isActive: true };
+  const program = await prisma.workoutProgram.create({ data: { ownerId: trainer, name: 'Consent plan' } });
+  try {
+    if (status === 'ACCEPTED') { await expect(requireMemberResultsAccess(actor, member)).resolves.toBeUndefined(); await expect(requireTrainerAssignment(actor, program.id, member)).resolves.toMatchObject({ id: program.id }); }
+    else { await expect(requireMemberResultsAccess(actor, member)).rejects.toMatchObject({ status: 403 }); await expect(requireTrainerAssignment(actor, program.id, member)).rejects.toMatchObject({ status: 403 }); }
+  } finally { await prisma.workoutProgram.delete({ where: { id: program.id } }); }
+});

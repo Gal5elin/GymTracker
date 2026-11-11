@@ -453,3 +453,26 @@ index is maintained in migration SQL because Prisma does not represent filtered 
 If existing data contains duplicate pending pairs, resolve those records before migration;
 the migration intentionally does not delete invitation history.
 Trainers can send invitations from the **Invitations** tab (#12). Enter the member email and submit; a successful response confirms **Pending**, awaiting member acceptance. Invalid recipients, duplicate or existing connections, denied access, and connection failures show retryable messages while preserving the entered email. The form prevents repeated submissions while sending and cancels requests when leaving the page. Member response/revocation flows are separate issues.
+
+
+### Member invitation responses (#13)
+
+Active `MEMBER` accounts can `GET /api/trainer-links` to list their own received
+invitations, newest first (creation time, then ID). The response is `{ invitations }`,
+including each link's `id`, `trainerId`, `memberId`, `status`, `createdAt`, and
+`trainer: { id, displayName }`. All statuses remain visible; no invitations returns an
+empty array. Query parameters are rejected (`400`); recipient identity comes from authentication.
+
+`PATCH /api/trainer-links/:invitationId` accepts only `{ "status": "ACCEPTED" }` or
+`{ "status": "REJECTED" }`. Only the invited member may respond, and only while the
+invitation is pending. Success returns `200 { invitation }` with the same fields as the
+list. Invalid IDs/bodies return `400`, missing records `404`, another recipient `403`,
+and an already answered/revoked invitation `409`. Concurrent responses have exactly
+one winner. Accepting an inactive or non-trainer account is rejected (`409`); rejecting
+its invitation remains possible. Trainers and admins cannot use these member endpoints.
+
+Creation and response share a transaction lock per trainer so accepting cannot race
+with creation of a second invitation. A conditional state update prevents later responses
+from overwriting the first decision. Accepted links satisfy the existing consent checks;
+rejected links grant no results or assignment access. Responses inherit the API's
+`no-store` policy. No schema migration is needed. The member invitation UI is issue #14.
