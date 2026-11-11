@@ -20,7 +20,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(
 describe('authenticated workspace navigation', () => {
   it.each(['MEMBER', 'TRAINER', 'ADMIN'] as const)('shows the correct desktop and mobile navigation for %s', async role => {
     await open(role);
-    const labels = role === 'ADMIN' ? ['Overview'] : role === 'TRAINER' ? [...personal, ...trainer] : personal;
+    const labels = role === 'ADMIN' ? ['Overview'] : role === 'TRAINER' ? [...personal, ...trainer] : [...personal, 'Assigned programs'];
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });
     expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual(labels);
     expect(within(nav).getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
@@ -34,10 +34,10 @@ describe('authenticated workspace navigation', () => {
     await open('TRAINER', '#account', 'MEMBER');
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });
     expect(within(nav).queryByRole('link', { name: 'Assignments' })).toBeNull();
-    expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual(personal);
+    expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual([...personal, 'Assigned programs']);
   });
   it.each([
-    ['MEMBER', '#assignments'], ['MEMBER', '#members'], ['ADMIN', '#invitations'],
+    ['MEMBER', '#members'], ['ADMIN', '#invitations'],
     ['ADMIN', '#history'], ['ADMIN', '#programs'], ['ADMIN', '#workout'], ['ADMIN', '#progress'], ['ADMIN', '#assignments'],
   ] as const)('denies direct navigation by %s to %s', async (role, hash) => {
     await open(role, hash);
@@ -52,7 +52,7 @@ describe('authenticated workspace navigation', () => {
     expect(await screen.findByRole('heading', { name: 'Assignments' })).toBeTruthy();
     expect(screen.queryByRole('navigation', { name: 'Mobile navigation' })).toBeNull();
     expect(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('link', { name: 'Assignments' }).getAttribute('aria-current')).toBe('page');
-    expect(screen.getByText('Coming soon')).toBeTruthy();
+    expect(screen.queryByText('Coming soon')).toBeNull();
   });
   it('keeps the shell and destination visible while refreshing account details during navigation', async () => {
     const { fetch } = await open('MEMBER');
@@ -61,7 +61,7 @@ describe('authenticated workspace navigation', () => {
     act(() => { window.history.replaceState(null, '', '#history'); window.dispatchEvent(new Event('hashchange')); });
     expect(screen.getByRole('heading', { name: 'History' })).toBeTruthy();
     expect(screen.queryByText('Loading your account…')).toBeNull();
-    expect(within(screen.getByRole('navigation', { name: 'Main navigation' })).getAllByRole('link')).toHaveLength(personal.length);
+    expect(within(screen.getByRole('navigation', { name: 'Main navigation' })).getAllByRole('link')).toHaveLength(personal.length + 1);
     await act(async () => { resolve({ ok: true, json: async () => ({ user }) }); });
     expect(screen.getByRole('heading', { name: 'History' })).toBeTruthy();
   });

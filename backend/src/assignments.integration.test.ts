@@ -84,6 +84,8 @@ it('rechecks consent even for retries and preserves old assignments after revoca
   expect((await assign()).status).toBe(403);
   const nextProgram = await program(trainer); expect((await assign(trainer, { programId: nextProgram, memberId: member })).status).toBe(403);
   expect(await prisma.programAssignment.findUnique({ where: { id: created.body.assignment.id } })).not.toBeNull();
+  const options = await request(app).get('/api/workout-sessions/options').set('Authorization', bearer(member));
+  expect(options.body.programs).toEqual(expect.arrayContaining([expect.objectContaining({ id: programId, source: 'ASSIGNED', assignmentId: created.body.assignment.id })]));
 });
 it('serializes with revocation: no assignment can commit based on already revoked consent', async () => {
   const relationship = await link();
@@ -91,4 +93,23 @@ it('serializes with revocation: no assignment can commit based on already revoke
   expect(revoked.status).toBe(200); expect([201, 403]).toContain(assigned.status);
   expect((await assign()).status).toBe(403);
   expect(await prisma.programAssignment.count({ where: { programId, memberId: member } })).toBe(assigned.status === 201 ? 1 : 0);
+});
+it('offers only owned programs and active accepted members with minimal selector fields', async () => {
+  await link(); await link('ACCEPTED', inactive); await link('ACCEPTED', otherTrainer);
+  const pending = await account('MEMBER'); await link('PENDING', pending.id);
+  const revoked = await account('MEMBER'); await link('REVOKED', revoked.id);
+  // Historical duplicate accepted links still produce one member choice.
+  await link();
+  const response = await request(app).get('/api/assignments/options').set('Authorization', bearer(trainer)); expect(response.status).toBe(200);
+  expect(response.body.programs.map((p: { id: string }) => p.id)).toContain(programId); expect(response.body.programs.map((p: { id: string }) => p.id)).not.toContain(otherProgram);
+  expect(response.body.members).toEqual([{ id: member, displayName: 'MEMBER', email: (await prisma.user.findUniqueOrThrow({ where: { id: member } })).email }]);
+  expect(JSON.stringify(response.body)).not.toMatch(/passwordHash|tokenHash/); expect(response.headers['cache-control']).toBe('no-store');
+});
+it('protects options and removes revoked members on the next read', async () => {
+  const relationship = await link();
+  expect((await request(app).get('/api/assignments/options')).status).toBe(401);
+  for (const actor of [member, admin]) expect((await request(app).get('/api/assignments/options').set('Authorization', bearer(actor))).status).toBe(403);
+  expect((await request(app).get(`/api/assignments/options?trainerId=${otherTrainer}`).set('Authorization', bearer(trainer))).status).toBe(400);
+  await request(app).patch(`/api/trainer-links/${relationship.id}`).set('Authorization', bearer(member)).send({ status: 'REVOKED' });
+  expect((await request(app).get('/api/assignments/options').set('Authorization', bearer(trainer))).body.members).toEqual([]);
 });

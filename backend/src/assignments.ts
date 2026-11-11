@@ -24,3 +24,16 @@ assignmentsRouter.post('/', requireRoles('TRAINER'), async (req, res) => {
   });
   res.status(result.created ? 201 : 200).json({ assignment: result.assignment });
 });
+
+assignmentsRouter.get('/options', requireRoles('TRAINER'), async (req, res) => {
+  if (!z.strictObject({}).safeParse(req.query).success) { res.status(400).json({ error: 'Assignment options do not accept query parameters' }); return; }
+  const trainerId = authenticatedUser(res).id;
+  const [programs, members] = await Promise.all([
+    prisma.workoutProgram.findMany({ where: { ownerId: trainerId }, select: { id: true, name: true, description: true }, orderBy: [{ name: 'asc' }, { id: 'asc' }] }),
+    prisma.user.findMany({
+      where: { role: 'MEMBER', isActive: true, memberLinks: { some: { trainerId, status: 'ACCEPTED' } } },
+      select: { id: true, displayName: true, email: true }, orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+    }),
+  ]);
+  res.json({ programs, members });
+});
