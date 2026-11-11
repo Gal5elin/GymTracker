@@ -558,4 +558,27 @@ creation entry points must follow the same locking protocol.
 Assigned programs and their days appear in the member's existing **Workout** choices.
 Assignment grants the ability to train from a program, not edit it. Existing assignments
 and completed workout data survive relationship revocation. No schema migration is
-needed. The trainer assignment screen is issue #22.
+needed. Trainer and member assignment views are available in #22.
+
+
+### Assignment and assigned-program views (#22)
+
+Trainers can open **Assignments**, choose one of their own programs and an accepted
+active member, and submit the assignment. Success confirms the program, member, and
+saved timestamp. Failed submissions preserve choices for retry; repeating the same
+assignment reuses the existing record. **Refresh choices** reloads access and removes
+recipients whose consent has changed. Empty states link to program creation or invitations.
+
+`GET /api/assignments/options` supplies `{ programs, members }` to authenticated trainers.
+Programs expose only `id`, `name`, `description` and belong to the caller. Members expose
+`id`, `displayName`, `email`, restricted to active `MEMBER` accounts with an accepted
+link to the caller, once per member. Other roles receive `403`; unauthenticated calls
+receive `401`; query parameters are rejected (`400`). Assignment POST rechecks current
+permissions, so stale selector data cannot bypass consent checks.
+
+Members see **Assigned programs** in navigation (`#assignments`), showing only assigned
+programs from their authenticated workout options, with numbered days and expandable
+planned exercises/targets. The view is read-only and links to **Workout** to select a day
+and start. Members retain these assignments when trainer collaboration is revoked; own
+programs remain in **My programs**. Loading, empty, error, and refresh states are provided.
+Admins cannot access the assignment screens. No schema migration is needed.
