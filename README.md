@@ -452,4 +452,4 @@ Apply `npm run db:migrate -w backend` before running the updated API. The partia
 index is maintained in migration SQL because Prisma does not represent filtered indexes.
 If existing data contains duplicate pending pairs, resolve those records before migration;
 the migration intentionally does not delete invitation history.
-The invitation form and member response/revocation flows are separate issues.
+Trainers can send invitations from the **Invitations** tab (#12). Enter the member email and submit; a successful response confirms **Pending**, awaiting member acceptance. Invalid recipients, duplicate or existing connections, denied access, and connection failures show retryable messages while preserving the entered email. The form prevents repeated submissions while sending and cancels requests when leaving the page. Member response/revocation flows are separate issues.
