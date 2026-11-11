@@ -7,6 +7,7 @@ import { progressRouter } from './progress.js';
 import { programsRouter } from './programs.js';
 import { workoutsRouter } from './workouts.js';
 import { trainerLinksRouter } from './trainer-links.js';
+import { trainerResultsRouter } from './trainer-results.js';
 import { assignmentsRouter } from './assignments.js';
 import { registrationRouter } from './registration.js';
 
@@ -28,8 +29,9 @@ export function createApp(frontendOrigin: string, jwtSecret: string, secureCooki
   app.use('/api/auth', registrationRouter);
   app.use('/api/auth', createAuthRouter(jwtSecret, secureCookies));
   // Mount future feature routers after these namespace guards.
-  app.use(['/api/programs', '/api/assignments', '/api/workout-sessions', '/api/progress', '/api/trainer-links'],
+  app.use(['/api/programs', '/api/assignments', '/api/workout-sessions', '/api/progress', '/api/trainer-links', '/api/trainer/members'],
     requireAuthentication(jwtSecret), requireRoles('MEMBER', 'TRAINER'));
+  app.use('/api/trainer/members', trainerResultsRouter);
   app.use('/api/assignments', assignmentsRouter);
   app.use('/api/trainer-links', trainerLinksRouter);
   app.use('/api/programs', programsRouter);
