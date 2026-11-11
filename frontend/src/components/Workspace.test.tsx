@@ -37,7 +37,7 @@ describe('authenticated workspace navigation', () => {
     expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual([...personal, 'Assigned programs']);
   });
   it.each([
-    ['MEMBER', '#members'], ['ADMIN', '#invitations'],
+    ['MEMBER', '#members'], ['MEMBER', '#members/11111111-1111-4111-8111-111111111111/history'], ['ADMIN', '#members/11111111-1111-4111-8111-111111111111/progress'], ['ADMIN', '#invitations'],
     ['ADMIN', '#history'], ['ADMIN', '#programs'], ['ADMIN', '#workout'], ['ADMIN', '#progress'], ['ADMIN', '#assignments'],
   ] as const)('denies direct navigation by %s to %s', async (role, hash) => {
     await open(role, hash);

@@ -610,3 +610,20 @@ member returns `403`. Responses are `no-store`.
 These routes expose no writes. An accepted link never grants permission to start,
 record sets for, or complete a member's workout; existing write APIs retain owner
 checks. Revocation leaves the member's own saved results intact. No migration is needed.
+
+## Trainer member results views
+
+US-16 frontend (#34) replaces the trainer **Member results** placeholder. At `/#members`,
+choose an accepted member to open their completed workout history or exercise progress.
+Member-scoped links support direct navigation to
+`/#members/:memberId/history`, `/#members/:memberId/history/:sessionId` and
+`/#members/:memberId/progress`. Details show actual saved sets and notes; charts and
+workout-value links stay within the selected member's history. These views expose no
+workout recording, starting or completion actions.
+
+Member choices refresh on navigation, window focus, returning to a visible tab, or
+**Refresh members**. Refreshing clears displayed results while access is checked.
+A forbidden result request removes the entire results view and explains that access
+is no longer available. Switching members cancels pending reads and discards previous
+results. Empty choices, empty results and request failures have explicit states and
+retry controls. Members and admins cannot open these routes.
