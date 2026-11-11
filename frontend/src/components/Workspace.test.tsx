@@ -4,8 +4,8 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { createAuthClient, type User } from '../api/auth';
 import Root from '../Root';
 
-const personal = ['Overview', 'My programs', 'Workout', 'History', 'Progress'];
-const trainer = ['Invitations', 'Assignments', 'Member results'];
+const personal = ['Overview', 'My programs', 'Workout', 'History', 'Progress', 'Invitations'];
+const trainer = ['Assignments', 'Member results'];
 const user = { id: 'member-id', displayName: 'Alex Member', email: 'member@example.com', role: 'MEMBER', isActive: true } as User;
 async function open(role: User['role'], hash = '#account', serverRole = role) {
   const fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token', tokenType: 'Bearer', expiresIn: 3600, user: { ...user, role } }) }).mockResolvedValue({ ok: true, json: async () => ({ user: { ...user, role: serverRole } }) });
@@ -33,11 +33,11 @@ describe('authenticated workspace navigation', () => {
   it('uses the current API role rather than the earlier login role', async () => {
     await open('TRAINER', '#account', 'MEMBER');
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });
-    expect(within(nav).queryByRole('link', { name: 'Invitations' })).toBeNull();
+    expect(within(nav).queryByRole('link', { name: 'Assignments' })).toBeNull();
     expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual(personal);
   });
   it.each([
-    ['MEMBER', '#assignments'], ['MEMBER', '#members'], ['MEMBER', '#invitations'],
+    ['MEMBER', '#assignments'], ['MEMBER', '#members'], ['ADMIN', '#invitations'],
     ['ADMIN', '#history'], ['ADMIN', '#programs'], ['ADMIN', '#workout'], ['ADMIN', '#progress'], ['ADMIN', '#assignments'],
   ] as const)('denies direct navigation by %s to %s', async (role, hash) => {
     await open(role, hash);
