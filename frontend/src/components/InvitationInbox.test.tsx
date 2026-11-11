@@ -83,3 +83,49 @@ it('does not expose the member inbox to administrators', async () => {
   const { fetch } = await open([], true, 'ADMIN'); expect(screen.getByRole('heading', { name: 'Access denied' })).toBeTruthy(); expect(screen.queryByRole('button', { name: 'Accept' })).toBeNull();
   expect(fetch.mock.calls.filter(call => String(call[0]).endsWith('/api/trainer-links'))).toHaveLength(0);
 });
+
+const accepted: ReceivedInvitation = { ...invitation, status: 'ACCEPTED' };
+function revoke() { fireEvent.click(screen.getByRole('button', { name: 'Revoke collaboration' })); }
+function confirm() { fireEvent.click(screen.getByRole('button', { name: 'Confirm revocation' })); }
+it('offers revocation only for accepted relationships and cancels confirmation without a request', async () => {
+  const { fetch } = await open([accepted]); revoke();
+  expect(screen.getByRole('group', { name: 'Revoke collaboration with Alex Trainer?' })).toBeTruthy();
+  expect(screen.getByText(/Your existing programs and workout history stay available/)).toBeTruthy();
+  const cancel = screen.getByRole('button', { name: 'Cancel' }); expect(document.activeElement).toBe(cancel);
+  fireEvent.click(cancel); expect(screen.queryByRole('button', { name: 'Confirm revocation' })).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Revoke collaboration' })); expect(fetch).toHaveBeenCalledTimes(2);
+  revoke(); fireEvent.keyDown(screen.getByRole('button', { name: 'Cancel' }), { key: 'Escape' }); expect(screen.queryByRole('group')).toBeNull(); expect(fetch).toHaveBeenCalledTimes(2);
+});
+it('revokes after explicit confirmation and displays the saved status', async () => {
+  const { fetch } = await open([accepted]); fetch.mockResolvedValueOnce(ok({ invitation: { ...accepted, status: 'REVOKED' } })); revoke(); confirm();
+  expect(await screen.findByText('Revoked')).toBeTruthy(); expect(screen.queryByRole('button', { name: 'Revoke collaboration' })).toBeNull();
+  expect(screen.getByRole('status').textContent).toContain('Your existing programs and workout history remain available');
+  expect(fetch.mock.calls[2][0]).toMatch(/\/api\/trainer-links\/link$/); expect(fetch.mock.calls[2][1].method).toBe('PATCH'); expect(JSON.parse(fetch.mock.calls[2][1].body)).toEqual({ status: 'REVOKED' });
+  expect((fetch.mock.calls[2][1].headers as Headers).get('Authorization')).toBe('Bearer token');
+});
+it('prevents duplicate revocations and cancels requests when leaving', async () => {
+  const { fetch, unmount } = await open([accepted]); let resolve!: (value: unknown) => void;
+  fetch.mockImplementationOnce(() => new Promise(done => { resolve = done; })); revoke(); const button = screen.getByRole('button', { name: 'Confirm revocation' }); fireEvent.click(button); fireEvent.click(button);
+  expect(fetch).toHaveBeenCalledTimes(3); expect((screen.getByRole('button', { name: 'Revoke collaboration' }) as HTMLButtonElement).disabled).toBe(true);
+  const signal = fetch.mock.calls[2][1].signal as AbortSignal; unmount(); expect(signal.aborted).toBe(true); await act(async () => resolve(ok({ invitation: { ...accepted, status: 'REVOKED' } })));
+});
+it.each([409, 403, 500])('recovers a failed revocation (%s) and requires fresh confirmation to retry', async status => {
+  const { fetch } = await open([accepted]); fetch.mockResolvedValueOnce(failed(status)).mockResolvedValueOnce(list([accepted])); revoke(); confirm();
+  expect(await screen.findByRole('alert')).toBeTruthy(); expect(screen.getByText('Accepted')).toBeTruthy(); expect(screen.queryByRole('button', { name: 'Confirm revocation' })).toBeNull();
+  fetch.mockResolvedValueOnce(ok({ invitation: { ...accepted, status: 'REVOKED' } })); revoke(); confirm(); expect(await screen.findByText('Revoked')).toBeTruthy();
+});
+it('reads back a revocation when the success response is lost', async () => {
+  const { fetch } = await open([accepted]); fetch.mockRejectedValueOnce(new Error('lost response')).mockResolvedValueOnce(list([{ ...accepted, status: 'REVOKED' }])); revoke(); confirm();
+  expect(await screen.findByText('Revoked')).toBeTruthy(); expect(screen.queryByRole('button', { name: 'Revoke collaboration' })).toBeNull();
+});
+it('blocks another revocation when its saved state is uncertain until refresh succeeds', async () => {
+  const { fetch } = await open([accepted]); fetch.mockRejectedValueOnce(new Error('offline')).mockRejectedValueOnce(new Error('offline')); revoke(); confirm();
+  expect((await screen.findByRole('alert')).textContent).toContain('Refresh invitations before responding again');
+  expect((screen.getByRole('button', { name: 'Revoke collaboration' }) as HTMLButtonElement).disabled).toBe(true);
+  fetch.mockResolvedValueOnce(list([{ ...accepted, status: 'REVOKED' }])); fireEvent.click(screen.getByRole('button', { name: 'Refresh invitations' })); expect(await screen.findByText('Revoked')).toBeTruthy();
+});
+it('keeps member program and history navigation after revocation', async () => {
+  const { fetch } = await open([accepted], true); fetch.mockResolvedValueOnce(ok({ invitation: { ...accepted, status: 'REVOKED' } })); revoke(); confirm(); await screen.findByText('Revoked');
+  const nav = within(screen.getByRole('navigation', { name: 'Main navigation' }));
+  expect(nav.getByRole('link', { name: 'My programs' }).getAttribute('href')).toBe('#programs'); expect(nav.getByRole('link', { name: 'History' }).getAttribute('href')).toBe('#history'); expect(nav.getByRole('link', { name: 'Workout' }).getAttribute('href')).toBe('#workout');
+});
