@@ -27,10 +27,10 @@ function validId(id: string) {
 }
 
 // Trainers retain member functions for their own records; admins have no override.
-export async function requireProgramOwner(user: AuthenticatedUser, programId: string) {
+export async function requireProgramOwner(user: AuthenticatedUser, programId: string, db: Prisma.TransactionClient = prisma) {
   assertRole(user, 'MEMBER', 'TRAINER');
   validId(programId);
-  const program = await prisma.workoutProgram.findUnique({ where: { id: programId } });
+  const program = await db.workoutProgram.findUnique({ where: { id: programId } });
   if (!program) throw new HttpError(404, 'Program not found');
   if (program.ownerId !== user.id) throw new HttpError(403, 'Forbidden');
   return program;
@@ -51,10 +51,10 @@ export async function requireWorkoutOwner(user: AuthenticatedUser, sessionId: st
   if (session.memberId !== user.id) throw new HttpError(403, 'Forbidden');
   return session;
 }
-export async function requireAcceptedMember(user: AuthenticatedUser, memberId: string) {
+export async function requireAcceptedMember(user: AuthenticatedUser, memberId: string, db: Prisma.TransactionClient = prisma) {
   assertRole(user, 'TRAINER');
   validId(memberId);
-  const link = await prisma.trainerLink.findFirst({ where: {
+  const link = await db.trainerLink.findFirst({ where: {
     trainerId: user.id, memberId, status: 'ACCEPTED', member: { role: 'MEMBER', isActive: true },
   } });
   if (!link) throw new HttpError(403, 'Forbidden');
@@ -65,10 +65,10 @@ export async function requireMemberResultsAccess(user: AuthenticatedUser, member
   validId(memberId);
   if (user.id !== memberId) await requireAcceptedMember(user, memberId);
 }
-export async function requireTrainerAssignment(user: AuthenticatedUser, programId: string, memberId: string) {
+export async function requireTrainerAssignment(user: AuthenticatedUser, programId: string, memberId: string, db: Prisma.TransactionClient = prisma) {
   assertRole(user, 'TRAINER');
-  const program = await requireProgramOwner(user, programId);
-  await requireAcceptedMember(user, memberId);
+  const program = await requireProgramOwner(user, programId, db);
+  await requireAcceptedMember(user, memberId, db);
   return program;
 }
 
