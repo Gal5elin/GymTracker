@@ -336,7 +336,7 @@ entry likewise leaves its descriptive labels null. Legacy completion times can r
 
 Members and trainers can read only their own history through these endpoints. An accepted trainer
 link or ownership of a source program does not grant access to a recipient's private history;
-separate trainer-read endpoints remain in their own issues. Existing assigned-workout history stays
+trainers use the separate member-scoped endpoints described below. Existing assigned-workout history stays
 with the recipient after collaboration ends. Missing login returns `401`, non-owners/admins `403`,
 invalid IDs `400`, and missing or non-completed history details `404`. Responses are `no-store`.
 There are no history write endpoints and no schema migration. The History tab (#30) loads these
@@ -582,3 +582,31 @@ planned exercises/targets. The view is read-only and links to **Workout** to sel
 and start. Members retain these assignments when trainer collaboration is revoked; own
 programs remain in **My programs**. Loading, empty, error, and refresh states are provided.
 Admins cannot access the assignment screens. No schema migration is needed.
+
+## Trainer member results
+
+US-16 backend (#33) provides read-only results for an active member linked to the
+current trainer with status `ACCEPTED`:
+
+| Method | Path | Response |
+|---|---|---|
+| GET | `/api/trainer/members/:memberId/workout-sessions/history?limit=20&cursor=<id>` | `{ workouts, nextCursor }` |
+| GET | `/api/trainer/members/:memberId/workout-sessions/history/:sessionId` | `{ workout }` |
+| GET | `/api/trainer/members/:memberId/progress/exercises` | `{ exercises }` |
+| GET | `/api/trainer/members/:memberId/progress/:exerciseId` | `{ exercise, points }` |
+
+The existing `/api/assignments/options` endpoint supplies accepted member choices.
+Results use the same pagination, frozen workout labels, actual saved sets and
+per-completed-workout maximum weights as the personal history/progress endpoints.
+Personal endpoints continue to select the authenticated user's own results.
+
+Every member-scoped request rechecks the current relationship, including later pages.
+Missing, pending, rejected or revoked links and inactive members return `403`.
+Anonymous requests return `401`; members and admins return `403`. Malformed IDs and
+invalid pagination or unsupported filters return `400`. Missing exercises/workouts
+and non-completed detail records return `404`; a workout belonging to a different
+member returns `403`. Responses are `no-store`.
+
+These routes expose no writes. An accepted link never grants permission to start,
+record sets for, or complete a member's workout; existing write APIs retain owner
+checks. Revocation leaves the member's own saved results intact. No migration is needed.
