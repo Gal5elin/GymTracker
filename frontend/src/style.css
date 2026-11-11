@@ -309,3 +309,6 @@ textarea::placeholder { color: #999; }
 .invitation-item h2 { overflow-wrap: anywhere; }
 .invitation-item .badge { margin-top: 12px; }
 .invitation-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+.revoke-confirmation { max-width: 460px; border-left: 2px solid #737373; padding-left: 16px; }
+.revoke-confirmation p { margin-bottom: 16px; }

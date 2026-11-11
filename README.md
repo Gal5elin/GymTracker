@@ -493,7 +493,7 @@ Response actions are disabled while saving. If saving fails or conflicts, the in
 reloads authoritative statuses; if that read also fails, further responses remain disabled
 until a successful refresh. Requests are canceled when leaving the screen. The inbox
 uses authenticated API requests without storing invitations in browser storage.
-Revocation is supported by the API (#15); its frontend control is issue #16.
+Revocation is available for accepted collaborations in this inbox (#15–16).
 
 
 ### Trainer relationship revocation (#15)
@@ -516,4 +516,20 @@ after revocation and requires fresh acceptance to restore consent.
 Revocation changes only the relationship status. Existing assignments, workout snapshots,
 performed sets, notes, and completed history remain intact. Members retain their own
 history/progress and may continue starting workouts from previously assigned programs.
-No schema migration is needed. The confirmation and revoke control are issue #16.
+No schema migration is needed. Members can use the confirmation and revoke control below (#16).
+
+
+### Collaboration revocation control (#16)
+
+In the member **Invitations** tab, accepted relationships offer **Revoke collaboration**.
+An inline confirmation names the trainer and explains the loss of results access and new
+assignment rights while keeping existing programs and workout history available. **Cancel**
+or Escape dismisses confirmation without a request and returns focus to the revoke button.
+Only **Confirm revocation** sends the authenticated status update.
+
+After saving, the relationship displays **Revoked** and no longer offers actions. Other
+collaborations and the member's program, workout, history, and progress navigation remain
+available. Saving disables repeated requests. A failure refreshes the saved relationship
+status; if verification also fails, actions remain disabled until a successful refresh.
+Retrying an accepted relationship requires confirmation again. Leaving the screen cancels
+pending requests. No backend or schema changes are required for this control.

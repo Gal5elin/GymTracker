@@ -35,7 +35,7 @@ function isInvitation(value: ReceivedInvitation): boolean {
     ['PENDING', 'ACCEPTED', 'REJECTED', 'REVOKED'].includes(value.status) && Number.isFinite(Date.parse(value.createdAt));
 }
 export function createInvitationInboxApi(client: AuthClient) {
-  async function send(path: string, signal: AbortSignal, status?: 'ACCEPTED' | 'REJECTED') {
+  async function send(path: string, signal: AbortSignal, status?: 'ACCEPTED' | 'REJECTED' | 'REVOKED') {
     try {
       const response = await client.request(`/api/trainer-links${path}`, {
         signal, ...(status ? { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) } : {}),
@@ -44,7 +44,7 @@ export function createInvitationInboxApi(client: AuthClient) {
     } catch (error) {
       if (error instanceof ApiError) throw new ApiError(error.status,
         error.status === 401 ? error.message : error.status === 403 ? 'You do not have permission to view or respond to these invitations.' :
-        error.status === 404 ? 'This invitation is no longer available.' : error.status === 409 ? 'This invitation cannot be answered. It may have changed, or the trainer is no longer available.' :
+        error.status === 404 ? 'This invitation is no longer available.' : error.status === 409 ? 'This relationship cannot be updated. It may have changed, or the trainer is no longer available.' :
         'Could not load or update invitations. Please try again.');
       throw new Error('Could not connect. Please try again.');
     }
@@ -55,7 +55,7 @@ export function createInvitationInboxApi(client: AuthClient) {
       if (!Array.isArray(data.invitations) || !data.invitations.every(isInvitation)) throw new Error('Could not load invitations. Please try again.');
       return data.invitations;
     },
-    async respond(id: string, status: 'ACCEPTED' | 'REJECTED', signal: AbortSignal): Promise<ReceivedInvitation> {
+    async respond(id: string, status: 'ACCEPTED' | 'REJECTED' | 'REVOKED', signal: AbortSignal): Promise<ReceivedInvitation> {
       const data = await send(`/${encodeURIComponent(id)}`, signal, status);
       if (!isInvitation(data.invitation) || data.invitation.id !== id || data.invitation.status !== status) throw new Error('Could not confirm the invitation response. Refresh invitations to check its status.');
       return data.invitation;
